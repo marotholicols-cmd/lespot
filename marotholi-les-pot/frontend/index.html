@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marotholi Les-Pot</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#d4ff3f">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{background:#0f0f0f;color:#fff;font-family:system-ui,sans-serif;margin:0;padding-bottom:120px}
+header{background:#d4ff3f;color:#000;padding:14px;text-align:center;font-weight:900;position:sticky;top:0;z-index:10}
+.wrap{max-width:600px;margin:0 auto;padding:16px}
+.card{background:#1e1e1e;border:1px solid #333;padding:14px;border-radius:14px;margin-bottom:12px}
+input,select{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:1px solid #333;background:#111;color:#fff}
+button{background:#d4ff3f;color:#000;border:0;padding:12px;border-radius:20px;font-weight:900;cursor:pointer;width:100%;margin-top:8px}
+button.small{width:auto;padding:8px 16px}
+.playBtn{background:#d4ff3f;color:#000;border:0;padding:10px 18px;border-radius:20px;font-weight:900;cursor:pointer}
+.flex{display:flex;gap:10px;align-items:center;justify-content:space-between}
+#msg{font-size:13px;opacity:.8;text-align:center;white-space:pre-wrap;margin:10px}
+#player{position:fixed;bottom:58px;left:0;right:0;background:#111;border-top:1px solid #333;padding:10px;text-align:center;z-index:20}
+#player audio{width:100%;max-width:600px}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #333;display:flex;justify-content:space-around;padding:12px;z-index:20}
+.nav button{background:none;color:#fff;width:auto;padding:6px;font-weight:700;opacity:.6}
+.nav button.active{opacity:1;color:#d4ff3f}
+.page{display:none}.page.active{display:block}
+.badge{background:#d4ff3f;color:#000;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:900}
+</style>
+</head>
+<body>
+<header>MAROTHOLI LES-POT</header>
+<div class="wrap">
+<div id="msg"></div>
+
+<!-- DISCOVER -->
+<div id="page-discover" class="page active">
+<h2>Discover</h2>
+<div id="discoverList">Loading...</div>
+</div>
+
+<!-- LIBRARY -->
+<div id="page-library" class="page">
+<h2>My Bought Songs</h2>
+<p style="opacity:.6;font-size:13px">Stream in app only.</p>
+<div id="libraryList"></div>
+</div>
+
+<!-- UPLOAD -->
+<div id="page-upload" class="page">
+<h2>Upload Song</h2>
+<input id="upTitle" placeholder="Song Title e.g. Killing Dudes">
+<input id="upArtist" placeholder="Artist Name e.g. Shutter">
+<input id="upPrice" type="number" step="0.1" placeholder="Price in Grind e.g. 0.5">
+<label style="font-size:13px;opacity:.7">Audio File — MP3 ONLY</label>
+<input id="upAudio" type="file" accept="audio/mp3,audio/mpeg,.mp3">
+<button onclick="uploadSong()">UPLOAD SONG →</button>
+<div id="upMsg" style="font-size:13px;margin-top:8px"></div>
+</div>
+
+<!-- WALLET -->
+<div id="page-wallet" class="page">
+<h2>Wallet</h2>
+<div class="card"><div>Balance</div><h1 id="walletBal">0G</h1><div style="opacity:.6;font-size:13px" id="walletEmail"></div></div>
+<h3>Top Up</h3>
+<input id="topAmount" type="number" placeholder="Amount e.g. 10">
+<input id="topPhone" placeholder="M-Pesa Number e.g. 58XXXXXX">
+<button onclick="topUp()">TOP UP WITH M-PESA</button>
+<h3>History</h3><div id="walletHist"></div>
+</div>
+
+<!-- ADMIN -->
+<div id="page-admin" class="page">
+<h2>Admin — Approvals</h2>
+<div id="adminList">Loading...</div>
+</div>
+
+<!-- AUTH -->
+<div id="page-auth" class="page">
+<h2>Login / Sign Up</h2>
+<input id="authEmail" placeholder="Email">
+<input id="authPass" type="password" placeholder="Password">
+<button onclick="doAuth('login')">LOGIN</button>
+<button onclick="doAuth('signup')" style="background:#333;color:#fff">SIGN UP</button>
+<button onclick="logout()" style="background:#333;color:#fff">LOGOUT</button>
+</div>
+</div>
+
+<div id="player" style="display:none"><div id="nowPlaying" style="font-size:13px"></div><audio id="audio" controls controlsList="nodownload"></audio></div>
+
+<div class="nav">
+<button onclick="showPage('discover',this)" class="active">Discover</button>
+<button onclick="showPage('library',this)">Library</button>
+<button onclick="showPage('upload',this)">Upload</button>
+<button onclick="showPage('wallet',this)">Wallet</button>
+<button onclick="showPage('admin',this)">Admin</button>
+<button onclick="showPage('auth',this)">Account</button>
+</div>
+
+<script>
+// ===== PASTE YOUR KEYS FROM OLD app.js HERE =====
+const SUPABASE_URL = "https://mmkxiniybctmgoozaecp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_wWhjXCZ4JWfGlCIG95kzPg_WXqzfVDP";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function showPage(name, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name==='discover') loadDiscover();
+  if(name==='library') loadLibrary();
+  if(name==='wallet') loadWallet();
+  if(name==='admin') loadAdmin();
+}
+function say(t){ document.getElementById('msg').textContent=t; }
+
+// DISCOVER
+async function loadDiscover(){
+  const el=document.getElementById('discoverList');
+  const {data,error}=await sb.from('songs').select('*').order('created_at',{ascending:false});
+  if(error){el.textContent=error.message;return;}
+  if(!data.length){el.textContent="No songs yet. Upload one!";return;}
+  el.innerHTML=data.map(s=>`<div class="card"><div class="flex"><div><b>${s.title}</b><div style="opacity:.6;font-size:13px">${s.artist_name} • ${s.price_grind}G</div></div><button class="small" onclick="buySong('${s.id}',${s.price_grind},'${s.title.replace(/'/g,"")}')">BUY</button></div></div>`).join('');
+}
+async function buySong(id,price,title){
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user){say("Login first in Account tab");showPage('auth');return;}
+  const code=prompt("Enter M-Pesa OTP for "+title+" ("+price+"G)\nUse TEST123 for testing");
+  if(!code) return;
+  const {error}=await sb.from('purchases').insert({song_id:id,buyer_id:user.id,status:'pending',otp_code:code,price_grind:price});
+  if(error) say("Error: "+error.message); else say("✅ Sent for approval! Check Library after Admin approves.");
+}
+
+// LIBRARY
+async function loadLibrary(){
+  const el=document.getElementById('libraryList');
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user){el.innerHTML="Login first in Account tab";return;}
+  const {data:all,error}=await sb.from('purchases').select('*,songs(*)').eq('status','approved').order('created_at',{ascending:false});
+  if(error){el.textContent=error.message;return;}
+  const mine=(all||[]).filter(p=>{const o=p.buyer_id||p.user_id||p.buyer||p.user; if(!o) return true; return o===user.id;});
+  if(!mine.length){el.textContent="No approved songs yet.";return;}
+  el.innerHTML=mine.map(p=>`<div class="card"><div class="flex"><div><b>${p.songs.title}</b><div style="opacity:.6;font-size:13px">${p.songs.artist_name} • ${p.songs.price_grind}G • <span class="badge">APPROVED</span></div></div><button class="playBtn" onclick='playSong(${JSON.stringify(p.songs)})'>▶ PLAY</button></div></div>`).join('');
+}
+async function playSong(song){
+  const player=document.getElementById('player'),audio=document.getElementById('audio');
+  document.getElementById('nowPlaying').textContent="🎵 "+song.title+" — "+song.artist_name;
+  player.style.display='block';
+  let url=null;
+  const {data:signed}=await sb.storage.from('songs').createSignedUrl(song.audio_path,3600);
+  if(signed) url=signed.signedUrl;
+  if(!url){const {data:pub}=sb.storage.from('songs').getPublicUrl(song.audio_path);url=pub.publicUrl;}
+  if('mediaSession' in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:song.title,artist:song.artist_name,album:'Marotholi Les-Pot'});}catch(e){}}
+  audio.src=url; say("✅ Playing: "+song.title);
+  try{await audio.play();}catch(e){say("Tap Play in player below");}
+}
+
+// UPLOAD
+async function uploadSong(){
+  const msg=document.getElementById('upMsg');
+  const title=document.getElementById('upTitle').value.trim();
+  const artist=document.getElementById('upArtist').value.trim();
+  const price=parseFloat(document.getElementById('upPrice').value);
+  const file=document.getElementById('upAudio').files[0];
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user){msg.textContent="Login first in Account tab";return;}
+  if(!title||!artist||!price){msg.textContent="Fill title, artist, price";return;}
+  if(!file){msg.textContent="Pick an MP3 file first";return;}
+  if(!file.type.startsWith('audio/')||!file.name.toLowerCase().endsWith('.mp3')){msg.textContent="❌ That is NOT an MP3! Pick a file ending with .mp3, not a picture.";return;}
+  msg.textContent="Uploading audio...";
+  const path=`${user.id}/${Date.now()}-${file.name}`;
+  const {error:upErr}=await sb.storage.from('songs').upload(path,file);
+  if(upErr){msg.textContent="Upload error: "+upErr.message;return;}
+  const {error:dbErr}=await sb.from('songs').insert({title,artist_name:artist,price_grind:price,audio_path:path,uploader_id:user.id});
+  if(dbErr){msg.textContent="DB error: "+dbErr.message;return;}
+  msg.textContent="✅ UPLOADED! Go to Discover.";
+  loadDiscover();
+}
+
+// WALLET
+async function loadWallet(){
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user){document.getElementById('walletBal').textContent="Login first";return;}
+  document.getElementById('walletEmail').textContent=user.email;
+  const {data}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  document.getElementById('walletBal').textContent=(data?.grind_balance||0)+"G";
+  const {data:hist}=await sb.from('purchases').select('*,songs(title)').eq('buyer_id',user.id).order('created_at',{ascending:false}).limit(10);
+  document.getElementById('walletHist').innerHTML=(hist||[]).map(h=>`<div class="card">${h.songs?.title||'Song'} — ${h.price_grind}G — ${h.status}</div>`).join('')||"No history";
+}
+async function topUp(){
+  const amt=document.getElementById('topAmount').value; const phone=document.getElementById('topPhone').value;
+  if(!amt||!phone){say("Enter amount + M-Pesa number");return;}
+  say("M-Pesa Top Up is demo for now — use Admin to add Grind. Amount: "+amt+" to "+phone);
+}
+
+// ADMIN
+async function loadAdmin(){
+  const el=document.getElementById('adminList');
+  const {data,error}=await sb.from('purchases').select('*,songs(title,artist_name)').eq('status','pending').order('created_at',{ascending:false});
+  if(error){el.textContent=error.message;return;}
+  if(!data.length){el.textContent="No pending approvals.";return;}
+  el.innerHTML=data.map(p=>`<div class="card"><b>${p.songs?.title}</b><div style="font-size:13px;opacity:.7">OTP: ${p.otp_code} • ${p.price_grind}G</div><button class="small" onclick="approve('${p.id}')">APPROVE</button></div>`).join('');
+}
+async function approve(id){
+  await sb.from('purchases').update({status:'approved'}).eq('id',id);
+  say("✅ Approved!"); loadAdmin(); loadLibrary();
+}
+
+// AUTH
+async function doAuth(mode){
+  const email=document.getElementById('authEmail').value, pass=document.getElementById('authPass').value;
+  if(mode==='login'){const {error}=await sb.auth.signInWithPassword({email,password:pass}); say(error?error.message:"✅ Logged in! Go to Discover");}
+  else{const {error}=await sb.auth.signUp({email,password:pass}); say(error?error.message:"✅ Account created! Now LOGIN");}
+}
+async function logout(){await sb.auth.signOut(); say("Logged out");}
+
+loadDiscover();
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wallet | LES-POT</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
+<body>
+<div class="topbar"><div class="logo">MAROTHOLI <span>LES-POT</span></div><span class="badge" id="bal">Ğ 0.00</span></div>
+<div class="container">
+  <div class="hero"><h1 id="balBig">0.00Ğ</h1><p>Your Royalties (63%) • Min withdraw 2.5Ğ = M25</p></div>
+  <div class="card"><h3>Request Withdrawal</h3><input id="wAmt" type="number" step="0.1" placeholder="Amount in Ğ (min 2.5)"><select id="wMethod"><option>Mpesa</option><option>EcoCash</option><option>Bank / Visa</option><option>Postbank</option></select><input id="wDetails" placeholder="Your number / account where to receive"><button onclick="requestW()">REQUEST WITHDRAWAL →</button><p id="wMsg" class="small center"></p></div>
+  <div class="card"><h3>My Withdrawals</h3><div id="list"></div></div>
+</div>
+<div class="bottomnav"><a href="discover.html">🔥 Discover</a><a href="library.html">📚 Library</a><a href="upload.html">⬆️ Upload</a><a href="wallet.html" class="active">💰 Wallet</a></div>
+<script src="app.js"></script>
+<script>
+async function requestW(){
+  const {data:{user}}=await sb.auth.getUser(); if(!user){location.href='auth.html';return}
+  const amt=parseFloat(document.getElementById('wAmt').value); const method=document.getElementById('wMethod').value; const det=document.getElementById('wDetails').value; const msg=document.getElementById('wMsg');
+  if(!amt||amt<2.5){msg.textContent="Minimum is 2.5Ğ because of fees.";return}
+  if(!det){msg.textContent="Enter where to receive money.";return}
+  const {error}=await sb.from('withdrawals').insert({artist_id:user.id,amount_grind:amt,receive_method:method,receive_details:det});
+  if(error){msg.textContent=error.message;return} msg.textContent="✅ Request sent! Status: PENDING. Owner will send money + approve."; load();
+}
+async function load(){
+  const {data:{user}}=await sb.auth.getUser(); if(!user) return;
+  const {data}=await sb.from('withdrawals').select('*').eq('artist_id',user.id).order('created_at',{ascending:false});
+  document.getElementById('list').innerHTML=(data||[]).map(w=>`<p>${w.amount_grind}Ğ → ${w.receive_method} • <b>${w.status.toUpperCase()}</b></p>`).join('')||"<p class='small'>No withdrawals yet</p>";
+} load();
+</script></body></html>
