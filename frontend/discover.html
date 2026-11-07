@@ -1,26 +1,41 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Discover | LES-POT</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
 <body>
-<div class="topbar"><div class="logo">MAROTHOLI <span>LES-POT</span></div><span class="badge" id="bal">Ğ 0.00</span></div>
+<div class="topbar"><div class="logo">MAROTHOLI <span>LES-POT</span></div><span class="badge" id="bal">G 0.00</span></div>
 <div class="container">
   <h2 style="margin-bottom:12px">🔥 Discover</h2>
   <div id="songs"><p class="small">Loading songs...</p></div>
 
   <!-- BUY MODAL -->
   <div id="buyModal" class="card hidden" style="border-color:#a3ff00">
-    <h3 id="buyTitle">Buy Song</h3><p id="buyPrice"></p><br>
+    <h3 id="buyTitle">Buy Song</h3><p id="buyPrice"></p><p id="myBalText" class="small"></p><br>
     <label class="small">1. How YOU will pay:</label>
-    <select id="payMethod"><option>Mpesa</option><option>EcoCash</option><option>Visa</option><option>Bank</option><option>Payfast</option></select>
-    <div class="card" style="background:#0a0a10">
+    <select id="payMethod" onchange="togglePayMethod()">
+      <option value="Wallet">💰 Wallet Balance (Instant Unlock)</option>
+      <option value="Mpesa">Mpesa</option>
+      <option value="EcoCash">EcoCash</option>
+      <option value="Visa">Visa</option>
+      <option value="Bank">Bank</option>
+      <option value="Payfast">Payfast</option>
+    </select>
+
+    <div id="walletBox" class="card" style="background:#0a0a10">
+      <p style="color:#fff;font-weight:800">Pay with your Wallet Balance</p>
+      <p class="small">Instant. No OTP. No waiting. Balance deducts now, artist gets 63% now, song unlocks in Library now.</p>
+    </div>
+
+    <div id="externalBox" class="card hidden" style="background:#0a0a10">
       <p style="color:#fff;font-weight:800">2. Pay MAROTHOLI GRINDERS:</p>
-      <p>• Mpesa: <b style="color:#a3ff00">59**** — Full number shown after you choose</b></p>
+      <p>• Mpesa: <b style="color:#a3ff00">59812345 - Marotholi Grinders</b></p>
+      <p>• EcoCash: <b style="color:#a3ff00">59812345 - Marotholi Grinders</b></p>
       <p>• Payfast Merchant: <b style="color:#a3ff00">37****</b></p>
       <p>• Postbank Acc: <b style="color:#a3ff00">10****</b></p>
       <p class="small">Pay EXACT amount. Keep your OTP / Reference.</p>
+      <label class="small">3. Paste OTP / Verification Reference from your bank:</label>
+      <input id="payRef" placeholder="e.g. MP250... / Tx123...">
     </div>
-    <label class="small">3. Paste OTP / Verification Reference from your bank:</label>
-    <input id="payRef" placeholder="e.g. MP250... / Tx123...">
-    <button onclick="submitBuy()">SUBMIT FOR APPROVAL →</button>
+
+    <button id="buyBtn" onclick="submitBuy()">BUY NOW →</button>
     <button class="ghost" style="margin-top:10px" onclick="closeBuy()">Cancel</button>
     <p id="buyMsg" class="small center"></p>
   </div>
@@ -31,30 +46,121 @@
   <a href="library.html">📚 Library</a>
   <a href="upload.html">⬆️ Upload</a>
   <a href="wallet.html">💰 Wallet</a>
+  <a href="admin.html">🛠️ Admin</a>
+  <a href="account.html">👤 Account</a>
 </div>
 <script src="app.js"></script>
 <script>
 let selectedSong=null;
+let myBalance=0;
+let myUser=null;
+
+async function loadMyBalance(){
+  const {data:{user}} = await sb.auth.getUser();
+  myUser = user;
+  if(!user){ document.getElementById('bal').textContent='G 0.00'; return; }
+  const {data} = await sb.from('profiles').select('balance_grind').eq('id', user.id).single();
+  myBalance = Number(data?.balance_grind || 0);
+  document.getElementById('bal').textContent = myBalance.toFixed(2)+' G';
+}
+
 async function loadSongs(){
   const {data,error}=await sb.from('songs').select('*').order('created_at',{ascending:false});
   const el=document.getElementById('songs');
-  if(error||!data||data.length===0){el.innerHTML=`<div class="card"><h3>No songs yet</h3><p>Be the first artist to upload. Go to Upload.</p><p class="small">Demo song: FlackoBird - Test (0.2Ğ = M2) will appear here after you upload.</p></div>`;return}
-  el.innerHTML=data.map(s=>`<div class="card song"><img src="${s.cover_url||''}"><div class="meta"><b>${s.title}</b><small>${s.artist_name} • ${s.total_buys} plays = ${s.total_buys} buys</small></div><div><div class="price-tag">${s.price_grind}Ğ</div><div class="small">M${(s.price_grind*10).toFixed(1)}</div><button style="width:auto;padding:8px 14px;margin-top:6px" onclick='openBuy(${JSON.stringify(s)})'>BUY</button></div></div>`).join('');
+  if(error||!data||data.length===0){el.innerHTML=`<div class="card"><h3>No songs yet</h3><p>Be the first artist to upload. Go to Upload.</p></div>`;return}
+  el.innerHTML=data.map(s=>`<div class="card song"><img src="${s.cover_url||''}"><div class="meta"><b>${s.title}</b><small>${s.artist_name} • ${s.total_buys||0} buys</small></div><div><div class="price-tag">${s.price_grind}G</div><div class="small">M${(Number(s.price_grind)*10).toFixed(1)}</div><button style="width:auto;padding:8px 14px;margin-top:6px" onclick='openBuy(${JSON.stringify(s)})'>BUY</button></div></div>`).join('');
 }
-function openBuy(s){selectedSong=s;document.getElementById('buyTitle').textContent="Buy: "+s.title;document.getElementById('buyPrice').textContent=s.price_grind+"Ğ = M"+(s.price_grind*10).toFixed(2)+" • Artist gets 63% • You get instant unlock after owner approves";document.getElementById('buyModal').classList.remove('hidden');window.scrollTo(0,0)}
+
+function togglePayMethod(){
+  const m = document.getElementById('payMethod').value;
+  const isWallet = m === 'Wallet';
+  document.getElementById('walletBox').classList.toggle('hidden', !isWallet);
+  document.getElementById('externalBox').classList.toggle('hidden', isWallet);
+  document.getElementById('buyBtn').textContent = isWallet ? 'BUY WITH WALLET →' : 'SUBMIT FOR APPROVAL →';
+}
+
+function openBuy(s){
+  selectedSong=s;
+  document.getElementById('buyTitle').textContent="Buy: "+s.title;
+  document.getElementById('buyPrice').textContent=s.price_grind+"G = M"+(Number(s.price_grind)*10).toFixed(2)+" • Artist gets 63%";
+  document.getElementById('myBalText').textContent="Your Wallet: "+myBalance.toFixed(2)+" G";
+  document.getElementById('payMethod').value='Wallet';
+  togglePayMethod();
+  document.getElementById('buyModal').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
 function closeBuy(){document.getElementById('buyModal').classList.add('hidden')}
+
 async function submitBuy(){
-  const ref=document.getElementById('payRef').value.trim();
   const method=document.getElementById('payMethod').value;
   const msg=document.getElementById('buyMsg');
+  if(!myUser){msg.textContent="Login first to buy.";location.href='auth.html';return}
+  if(!selectedSong){msg.textContent="No song selected";return}
+  const price = Number(selectedSong.price_grind);
+
+  // ===== WALLET BUY - INSTANT, DEDUCTS BALANCE - THIS WAS MISSING =====
+  if(method === 'Wallet'){
+    if(myBalance < price){ msg.textContent=`Not enough balance. You have ${myBalance.toFixed(2)} G, need ${price} G. Top up in Wallet first.`; return; }
+    msg.textContent="Buying with Wallet...";
+
+    // 1. Check already bought
+    const {data: already} = await sb.from('purchases').select('id').eq('fan_id', myUser.id).eq('song_id', selectedSong.id).maybeSingle();
+    if(already){ msg.textContent="You already own this. Go to Library."; return; }
+
+    // 2. DEDUCT BUYER
+    const {error: deductErr} = await sb.from('profiles').update({ balance_grind: myBalance - price }).eq('id', myUser.id);
+    if(deductErr){ msg.textContent="Deduct failed: "+deductErr.message; return; }
+
+    // 3. PAY ARTIST 63%
+    const artistId = selectedSong.artist_id || selectedSong.user_id || selectedSong.owner_id;
+    if(artistId && artistId !== myUser.id){
+      const {data: artist} = await sb.from('profiles').select('balance_grind').eq('id', artistId).single();
+      const royalty = price * 0.63;
+      await sb.from('profiles').update({ balance_grind: Number(artist?.balance_grind||0) + royalty }).eq('id', artistId);
+    }
+
+    // 4. Record purchase as APPROVED / instant unlock
+    const {error: purErr} = await sb.from('purchases').insert({
+      fan_id: myUser.id,
+      user_id: myUser.id,
+      song_id: selectedSong.id,
+      price_grind: price,
+      amount: price,
+      pay_method: 'Wallet',
+      pay_reference: 'WALLET-'+Date.now(),
+      status: 'approved'
+    });
+    if(purErr){ msg.textContent="Purchase save failed: "+purErr.message; return; }
+
+    // 5. Increment buys count
+    await sb.from('songs').update({ total_buys: Number(selectedSong.total_buys||0)+1 }).eq('id', selectedSong.id);
+
+    msg.textContent=`✅ Bought! -${price} G. New balance: ${(myBalance-price).toFixed(2)} G. Go to Library!`;
+    myBalance -= price;
+    document.getElementById('bal').textContent = myBalance.toFixed(2)+' G';
+    setTimeout(()=>{ location.href='library.html'; }, 1200);
+    return;
+  }
+
+  // ===== EXTERNAL BUY - Mpesa/EcoCash - WAIT FOR APPROVAL =====
+  const ref=document.getElementById('payRef').value.trim();
   if(!ref){msg.textContent="Paste your OTP / Reference first.";return}
-  const {data:{user}}=await sb.auth.getUser();
-  if(!user){msg.textContent="Login first to buy.";location.href='auth.html';return}
   msg.textContent="Sending to owner for approval...";
-  const {error}=await sb.from('purchases').insert({fan_id:user.id,song_id:selectedSong.id,price_grind:selectedSong.price_grind,pay_method:method,pay_reference:ref});
+  const {error}=await sb.from('purchases').insert({
+    fan_id: myUser.id,
+    user_id: myUser.id,
+    song_id: selectedSong.id,
+    price_grind: price,
+    amount: price,
+    pay_method: method,
+    pay_reference: ref,
+    status: 'pending'
+  });
   if(error){msg.textContent=error.message;return}
   msg.textContent="✅ Sent! Wait for OWNER approval. Song unlocks in Library after approval.";
 }
+
+loadMyBalance();
 loadSongs();
 </script>
 </body></html>
