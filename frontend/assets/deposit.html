@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deposit | LES-POT</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar"><div class="logo">MAROTHOLI <span>LES-POT</span></div><span class="badge" id="bal">G 0.00</span></div>
+
+<div class="container">
+  <div class="hero"><h1>💰 Deposit / Top Up</h1><p>1 G = M10 • Top up to buy songs</p></div>
+
+  <div class="card">
+    <h3>Step 1 - Send Money</h3>
+    <p class="small">Send via Mpesa / EcoCash to Owner number.<br>Keep the OTP / Reference from SMS.</p>
+  </div>
+
+  <div class="card">
+    <h3>Step 2 - Confirm Deposit</h3>
+    <input id="dAmt" type="number" step="0.1" placeholder="Amount in G">
+    <select id="dMethod"><option>Mpesa</option><option>EcoCash</option><option>Bank / Visa</option><option>Postbank</option></select>
+    <input id="dRef" placeholder="OTP / Reference from Mpesa SMS">
+    <button onclick="requestD()">DEPOSIT →</button>
+    <p id="dMsg" class="small center"></p>
+  </div>
+
+  <div class="card"><h3>My Deposits</h3><div id="myDeposits"></div></div>
+</div>
+
+<div class="bottomnav"><a href="discover.html">🔥 Discover</a><a href="library.html">📚 Library</a><a href="upload.html">⬆️ Upload</a><a href="wallet.html">💰 Wallet</a></div>
+
+<script src="app.js"></script>
+<script>
+async function requestD(){
+  const {data:{user}} = await sb.auth.getUser();
+  if(!user){ location.href='auth.html'; return; }
+  const amt = parseFloat(document.getElementById('dAmt').value);
+  const method = document.getElementById('dMethod').value;
+  const ref = document.getElementById('dRef').value.trim();
+  const msg = document.getElementById('dMsg');
+  if(!amt || amt <= 0){ msg.textContent = "Enter amount"; return; }
+  if(!ref){ msg.textContent = "Enter OTP / Reference"; return; }
+  const {error} = await sb.from('deposits').insert({ user_id: user.id, amount_grind: amt, method: method, reference: ref, status: 'pending' });
+  if(error){ msg.textContent = error.message; return; }
+  msg.textContent = "✅ Deposit sent! Status: PENDING. Wait for Admin approval.";
+  loadAll();
+}
+async function loadAll(){
+  const {data:{user}} = await sb.auth.getUser();
+  if(!user) return;
+  const {data:prof} = await sb.from('profiles').select('grind_balance').eq('id', user.id).single();
+  const bal = Number(prof?.grind_balance || 0).toFixed(2) + ' G';
+  const balEl = document.getElementById('bal'); if(balEl) balEl.textContent = bal;
+  const {data:deps} = await sb.from('deposits').select('*').eq('user_id', user.id).order('created_at',{ascending:false});
+  document.getElementById('myDeposits').innerHTML = (deps||[]).map(d=>`<p>+${d.amount_grind} G → ${d.method} • ${d.reference} • <b>${(d.status||'').toUpperCase()}</b></p>`).join('') || "<p class='small'>No deposits yet</p>";
+}
+loadAll();
+</script>
+</body>
+</html>
