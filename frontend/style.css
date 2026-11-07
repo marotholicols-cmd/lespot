@@ -1,0 +1,25 @@
+/* MAROTHOLI LES-POT - Les-Pot GrindPay */
+:root{--bg:#08080d;--card:#12121a;--green:#a3ff00;--green2:#00ff88;--text:#fff;--muted:#9a9aab;--red:#ff3b3b}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
+body{background:var(--bg);color:var(--text);padding-bottom:90px}
+a{color:var(--green);text-decoration:none}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:#0d0d14;position:sticky;top:0;z-index:10;border-bottom:1px solid #222}
+.logo{font-size:22px;font-weight:900}.logo span{color:var(--green)}
+.badge{background:var(--green);color:#000;font-size:11px;font-weight:800;padding:4px 8px;border-radius:20px}
+.hero{padding:28px 20px;background:linear-gradient(135deg,#a3ff00,#00ff88);color:#000;border-radius:0 0 24px 24px}
+.hero h1{font-size:32px;line-height:1.05}.hero p{margin-top:8px;font-weight:600;opacity:.8}
+.hero .price{margin-top:14px;background:#000;color:var(--green);display:inline-block;padding:8px 14px;border-radius:12px;font-weight:800}
+.container{padding:20px}.card{background:var(--card);border:1px solid #222;border-radius:18px;padding:18px;margin-bottom:14px}
+.card h3{font-size:16px;margin-bottom:6px}.card p{color:var(--muted);font-size:14px;line-height:1.5}
+input,select{width:100%;padding:14px;background:#0a0a10;border:1px solid #2a2a35;border-radius:12px;color:#fff;margin-bottom:12px;font-size:15px;outline:none}
+input:focus{border-color:var(--green)}
+button{width:100%;padding:15px;background:var(--green);color:#000;border:none;border-radius:12px;font-weight:900;font-size:16px;cursor:pointer}
+button.ghost{background:transparent;border:1px solid #333;color:#fff}
+button.danger{background:var(--red);color:#fff}
+.song{display:flex;gap:14px;align-items:center}.song img{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#222}
+.song .meta{flex:1}.song .meta b{display:block}.song .meta small{color:var(--muted)}
+.price-tag{color:var(--green);font-weight:900}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#0d0d14;border-top:1px solid #222;display:flex;justify-content:space-around;padding:12px 0;z-index:20}
+.bottomnav a{font-size:12px;color:var(--muted);text-align:center}.bottomnav a.active{color:var(--green);font-weight:800}
+.player{position:fixed;bottom:62px;left:12px;right:12px;background:#1a1a24;border:1px solid #333;border-radius:16px;padding:12px;display:flex;align-items:center;gap:12px;z-index:15}
+.hidden{display:none!important}.center{text-align:center}.small{font-size:12px;color:var(--muted)}

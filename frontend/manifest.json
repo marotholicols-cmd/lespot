@@ -1,0 +1,9 @@
+{
+  "name": "Marotholi Les-Pot",
+  "short_name": "Les-Pot",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#d4ff3f",
+  "icons": []
+}

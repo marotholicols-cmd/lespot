@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login - Marotholi Les-Pot</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<style>
+  *{box-sizing:border-box} body{background:#0f0f0f;color:#fff;font-family:system-ui,sans-serif;margin:0;padding:0}
+  header{background:#d4ff3f;color:#000;padding:16px;text-align:center;font-weight:900;font-size:20px}
+  .wrap{max-width:400px;margin:0 auto;padding:20px}
+  .card{background:#1e1e1e;border:1px solid #333;padding:20px;border-radius:16px}
+  h2{margin:0 0 14px} input,select{width:100%;padding:12px;border-radius:10px;border:1px solid #333;background:#222;color:#fff;margin-bottom:10px;font-size:15px}
+  button{width:100%;padding:13px;border:0;border-radius:10px;background:#d4ff3f;color:#000;font-weight:900;font-size:16px;cursor:pointer;margin-top:4px}
+  .link{color:#d4ff3f;cursor:pointer;text-align:center;margin-top:12px;display:block}
+  .hidden{display:none} #rMsg,#lMsg{margin-top:10px;font-size:14px;min-height:20px;text-align:center}
+  .footer{text-align:center;opacity:.6;font-size:12px;margin-top:20px}
+</style>
+</head>
+<body>
+<header>MAROTHOLI LES-POT</header>
+<div class="wrap">
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+    <h2>LOGIN</h2>
+    <input id="lEmail" type="email" placeholder="Email">
+    <input id="lPass" type="password" placeholder="Password">
+    <button onclick="doLogin()">Login</button>
+    <div id="lMsg"></div>
+    <span class="link" onclick="showReg()">New? Register</span>
+    <span class="link" style="color:#fff;opacity:.7">Forgot Password? Use Security Question</span>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="card hidden" id="regCard">
+    <h2>Register</h2>
+    <input id="rName" placeholder="Full Name">
+    <input id="rPhone" placeholder="Lesotho number e.g. 59812345">
+    <select id="rCountry"><option value="Lesotho">Lesotho</option><option value="South Africa">South Africa</option><option value="Other">Other</option></select>
+    <select id="rGender"><option value="">Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select>
+    <input id="rEmail" type="email" placeholder="Email">
+    <input id="rPass" type="password" placeholder="Password">
+    <select id="rQ"><option>What is your mother's maiden name?</option><option>What was your first school?</option><option>What is your favourite song?</option></select>
+    <input id="rA" placeholder="Security Answer">
+    <button onclick="doRegister()">Create Account</button>
+    <div id="rMsg"></div>
+    <span class="link" onclick="showLogin()">Already have account? Login</span>
+  </div>
+
+  <div class="footer">© MAROTHOLI GRINDERS • MAROTHOLI LES-POT • Les-Pot GrindPay</div>
+</div>
+</body>
+</html>

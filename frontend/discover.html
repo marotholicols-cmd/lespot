@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Discover | LES-POT</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
+<body>
+<div class="topbar"><div class="logo">MAROTHOLI <span>LES-POT</span></div><span class="badge" id="bal">Ğ 0.00</span></div>
+<div class="container">
+  <h2 style="margin-bottom:12px">🔥 Discover</h2>
+  <div id="songs"><p class="small">Loading songs...</p></div>
+
+  <!-- BUY MODAL -->
+  <div id="buyModal" class="card hidden" style="border-color:#a3ff00">
+    <h3 id="buyTitle">Buy Song</h3><p id="buyPrice"></p><br>
+    <label class="small">1. How YOU will pay:</label>
+    <select id="payMethod"><option>Mpesa</option><option>EcoCash</option><option>Visa</option><option>Bank</option><option>Payfast</option></select>
+    <div class="card" style="background:#0a0a10">
+      <p style="color:#fff;font-weight:800">2. Pay MAROTHOLI GRINDERS:</p>
+      <p>• Mpesa: <b style="color:#a3ff00">59**** — Full number shown after you choose</b></p>
+      <p>• Payfast Merchant: <b style="color:#a3ff00">37****</b></p>
+      <p>• Postbank Acc: <b style="color:#a3ff00">10****</b></p>
+      <p class="small">Pay EXACT amount. Keep your OTP / Reference.</p>
+    </div>
+    <label class="small">3. Paste OTP / Verification Reference from your bank:</label>
+    <input id="payRef" placeholder="e.g. MP250... / Tx123...">
+    <button onclick="submitBuy()">SUBMIT FOR APPROVAL →</button>
+    <button class="ghost" style="margin-top:10px" onclick="closeBuy()">Cancel</button>
+    <p id="buyMsg" class="small center"></p>
+  </div>
+</div>
+
+<div class="bottomnav">
+  <a href="discover.html" class="active">🔥 Discover</a>
+  <a href="library.html">📚 Library</a>
+  <a href="upload.html">⬆️ Upload</a>
+  <a href="wallet.html">💰 Wallet</a>
+</div>
+<script src="app.js"></script>
+<script>
+let selectedSong=null;
+async function loadSongs(){
+  const {data,error}=await sb.from('songs').select('*').order('created_at',{ascending:false});
+  const el=document.getElementById('songs');
+  if(error||!data||data.length===0){el.innerHTML=`<div class="card"><h3>No songs yet</h3><p>Be the first artist to upload. Go to Upload.</p><p class="small">Demo song: FlackoBird - Test (0.2Ğ = M2) will appear here after you upload.</p></div>`;return}
+  el.innerHTML=data.map(s=>`<div class="card song"><img src="${s.cover_url||''}"><div class="meta"><b>${s.title}</b><small>${s.artist_name} • ${s.total_buys} plays = ${s.total_buys} buys</small></div><div><div class="price-tag">${s.price_grind}Ğ</div><div class="small">M${(s.price_grind*10).toFixed(1)}</div><button style="width:auto;padding:8px 14px;margin-top:6px" onclick='openBuy(${JSON.stringify(s)})'>BUY</button></div></div>`).join('');
+}
+function openBuy(s){selectedSong=s;document.getElementById('buyTitle').textContent="Buy: "+s.title;document.getElementById('buyPrice').textContent=s.price_grind+"Ğ = M"+(s.price_grind*10).toFixed(2)+" • Artist gets 63% • You get instant unlock after owner approves";document.getElementById('buyModal').classList.remove('hidden');window.scrollTo(0,0)}
+function closeBuy(){document.getElementById('buyModal').classList.add('hidden')}
+async function submitBuy(){
+  const ref=document.getElementById('payRef').value.trim();
+  const method=document.getElementById('payMethod').value;
+  const msg=document.getElementById('buyMsg');
+  if(!ref){msg.textContent="Paste your OTP / Reference first.";return}
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user){msg.textContent="Login first to buy.";location.href='auth.html';return}
+  msg.textContent="Sending to owner for approval...";
+  const {error}=await sb.from('purchases').insert({fan_id:user.id,song_id:selectedSong.id,price_grind:selectedSong.price_grind,pay_method:method,pay_reference:ref});
+  if(error){msg.textContent=error.message;return}
+  msg.textContent="✅ Sent! Wait for OWNER approval. Song unlocks in Library after approval.";
+}
+loadSongs();
+</script>
+</body></html>
