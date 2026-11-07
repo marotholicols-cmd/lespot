@@ -1,278 +1,264 @@
-// MAROTHOLI LES-POT - app.js - FULL REPLACE - FIXED
+// ============================================
+// LES-POT - MAROTHOLI GRINDERS - app.js FULL
+// USES SUPABASE PUBLISHABLE KEY (sb_publishable_)
+// ============================================
 const SUPABASE_URL = "https://mmkxiniybctmgoozaecp.supabase.co";
 const SUPABASE_KEY = "sb_publishable_wWhjXCZ4JWfGlCIG95kzPg_WXqzfVDP";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.sb = sb;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ---------- LOGIN / REGISTER UI ----------
-function showLogin(){
-  const reg = document.getElementById('regCard');
-  const log = document.getElementById('loginCard');
-  if(reg) reg.classList.add('hidden');
-  if(log) log.classList.remove('hidden');
-}
-function showReg(){
-  const reg = document.getElementById('regCard');
-  const log = document.getElementById('loginCard');
-  if(log) log.classList.add('hidden');
-  if(reg) reg.classList.remove('hidden');
-}
-window.showLogin = showLogin;
-window.showReg = showReg;
-
-// ---------- REGISTER ----------
-async function doRegister(){
-  const name = document.getElementById('rName')?.value.trim();
-  const phone = document.getElementById('rPhone')?.value.trim();
-  const country = document.getElementById('rCountry')?.value;
-  const gender = document.getElementById('rGender')?.value;
-  const email = document.getElementById('rEmail')?.value.trim();
-  const pass = document.getElementById('rPass')?.value;
-  const q = document.getElementById('rQ')?.value;
-  const ans = document.getElementById('rA')?.value.trim();
-  const msg = document.getElementById('rMsg');
-  const say = (t)=>{ if(msg) msg.textContent = t; };
-
-  if(!name || !phone || !gender || !email || !pass || !ans){ say("Fill ALL fields. Real info please."); return; }
-  const clean = phone.replace(/\D/g, '');
-  if(clean.length !== 8){ say("Lesotho number must be 8 digits, e.g. 59812345"); return; }
-
-  say("Creating account...");
-  const { data, error } = await sb.auth.signUp({ email, password: pass });
-  if(error){ say(error.message); return; }
-
-  const user = data.user;
-  if(user){
-    // Try to create profile - trigger also does this, upsert is safe
-    const { error: pErr } = await sb.from('profiles').upsert({
-      id: user.id,
-      email: email,
-      name: name,
-      phone: clean,
-      country: country,
-      gender: gender,
-      security_q: q,
-      security_a: ans,
-      is_admin: false,
-      balance_grind: 0
-    }, { onConflict: 'id' });
-    if(pErr) console.log('profile upsert (trigger will handle):', pErr.message);
-  }
-  say("✅ Account created! Check Spam for confirmation, then login.");
-  showLogin();
-}
-window.doRegister = doRegister;
-
-// ---------- LOGIN ----------
-async function doLogin(){
-  const email = document.getElementById('lEmail')?.value.trim() || document.getElementById('loginEmail')?.value.trim();
-  const pass = document.getElementById('lPass')?.value || document.getElementById('loginPass')?.value;
-  const msg = document.getElementById('lMsg') || document.getElementById('loginMsg');
-  const say = (t)=>{ if(msg) msg.textContent = t; };
-  if(!email || !pass){ say("Enter email + password"); return; }
-  say("Logging in...");
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if(error){ say(error.message); return; }
-  say("✅ Logged in! Redirecting...");
-  location.href = 'discover.html';
-}
-window.doLogin = doLogin;
-
-// ---------- LOGOUT ----------
-async function doLogout(){
-  await sb.auth.signOut();
-  location.href = 'auth.html';
-}
-window.doLogout = doLogout;
-
-// ---------- HELPERS ----------
+// ---------- AUTH / USER ----------
 async function getCurrentUser(){
-  const { data: { user } } = await sb.auth.getUser();
-  return user;
-}
-async function isAdmin(){
-  const user = await getCurrentUser();
-  if(!user) return false;
-  const { data } = await sb.from('profiles').select('is_admin').eq('id', user.id).single();
-  return data?.is_admin === true;
+  const { data } = await sb.auth.getUser();
+  return data?.user || null;
 }
 async function getMyProfile(){
   const user = await getCurrentUser();
-  if(!user) return null;
+  if(!user) return { user:null, profile:null };
   const { data } = await sb.from('profiles').select('*').eq('id', user.id).single();
-  return data;
+  return { user, profile: data };
 }
-window.getCurrentUser = getCurrentUser;
-window.isAdmin = isAdmin;
-window.getMyProfile = getMyProfile;
-
-// ---------- WALLET ----------
+async function loadBalanceBadge(){
+  const el = document.getElementById('bal');
+  if(!el) return;
+  const { user, profile } = await getMyProfile();
+  if(!user){ el.textContent = 'G 0.00'; return; }
+  el.textContent = Number(profile?.balance_grind || 0).toFixed(2) + ' G';
+}
 async function loadWallet(){
-  const balEl = document.getElementById('walletBalance') || document.getElementById('balance') || document.getElementById('balanceGrind');
-  const user = await getCurrentUser();
-  if(!user){
-    if(balEl) balEl.textContent = '0.00 G';
-    return;
-  }
-  const { data } = await sb.from('profiles').select('balance_grind').eq('id', user.id).single();
-  const bal = data?.balance_grind ?? 0;
-  if(balEl) balEl.textContent = Number(bal).toFixed(2) + ' G';
-  // Also update any other balance labels
-  document.querySelectorAll('[data-balance]').forEach(el => el.textContent = Number(bal).toFixed(2) + ' G');
-  return bal;
+  const { user, profile } = await getMyProfile();
+  const balEl = document.getElementById('walletBalance') || document.getElementById('bal');
+  if(balEl && profile) balEl.textContent = Number(profile.balance_grind || 0).toFixed(2) + ' G';
+  if(user) loadMyDeposits(user.id);
+  if(user) loadMyWithdrawals(user.id);
 }
-window.loadWallet = loadWallet;
 
-async function submitDeposit(){
-  const amountEl = document.getElementById('depAmount') || document.getElementById('depositAmount');
-  const refEl = document.getElementById('depRef') || document.getElementById('depositRef') || document.getElementById('depReference');
-  const methodEl = document.getElementById('depMethod') || document.getElementById('depositMethod');
-  const msgEl = document.getElementById('depMsg') || document.getElementById('depositMsg');
-  const say = (t)=>{ if(msgEl) msgEl.textContent = t; };
+// ---------- HELPERS ----------
+function getUserIdFromRow(row){
+  return row.user_id || row.fan_id || row.artist_id || row.profile_id || row.owner_id || null;
+}
+function getAmountFromRow(row){
+  return Number(row.amount_grind || row.amount || row.amount_g || row.grind || row.price_grind || 0);
+}
 
+// ---------- DEPOSITS ----------
+async function submitDeposit(amount, method, reference){
   const user = await getCurrentUser();
-  if(!user){ say('Please login first'); return; }
-
-  const amount = Number(amountEl?.value);
-  const ref = refEl?.value.trim();
-  const method = methodEl?.value || 'EcoCash';
-
-  if(!amount || amount <= 0){ say('Enter amount > 0'); return; }
-  if(!ref){ say('Enter EcoCash / M-Pesa reference'); return; }
-
-  say('Sending deposit...');
+  if(!user){ alert('Login first'); location.href='auth.html'; return; }
+  amount = Number(amount);
+  if(!amount || amount <= 0){ alert('Enter amount'); return; }
+  if(!reference){ alert('Paste OTP / Reference'); return; }
   const { error } = await sb.from('deposits').insert({
-    user_id: user.id,
-    amount: amount,
-    amount_grind: amount,
-    reference: ref,
-    method: method,
+    user_id: user.id, fan_id: user.id,
+    amount_grind: amount, amount: amount,
+    pay_method: method, method: method,
+    pay_reference: reference, reference: reference,
     status: 'pending'
   });
-  if(error){ say('Error: ' + error.message); console.log(error); return; }
-  say('✅ Deposit sent! Status: PENDING. Admin will approve.');
-  if(amountEl) amountEl.value = '';
-  if(refEl) refEl.value = '';
-  loadWallet();
+  if(error){ alert('Deposit failed: '+error.message); return; }
+  alert('✅ Deposit sent! Wait for Admin approval. Balance will increase after approval.');
+  location.reload();
 }
 window.submitDeposit = submitDeposit;
 
-async function submitWithdrawal(){
-  const amountEl = document.getElementById('withAmount');
-  const phoneEl = document.getElementById('withPhone');
-  const msgEl = document.getElementById('withMsg');
-  const say = (t)=>{ if(msgEl) msgEl.textContent = t; };
-  const user = await getCurrentUser();
-  if(!user){ say('Login first'); return; }
-  const amount = Number(amountEl?.value);
-  const phone = phoneEl?.value.trim();
-  if(!amount || amount <= 0){ say('Enter amount'); return; }
-  const bal = await loadWallet();
-  if(amount > bal){ say('Not enough balance'); return; }
-  const { error } = await sb.from('withdrawals').insert({
-    user_id: user.id,
-    amount: amount,
-    amount_grind: amount,
-    phone: phone,
-    status: 'pending'
-  });
-  if(error){ say(error.message); return; }
-  say('✅ Withdrawal requested. Admin will approve.');
-}
-window.submitWithdrawal = submitWithdrawal;
-
-// ---------- ADMIN - THE FIX ----------
-async function approveDeposit(id){
-  if(!await isAdmin()){ alert('Admin only'); return; }
-  // 1. Get deposit
-  const { data: dep, error: getErr } = await sb.from('deposits').select('*').eq('id', id).single();
-  if(getErr || !dep){ alert('Deposit not found: ' + (getErr?.message || '')); return; }
+async function approveDeposit(depositId){
+  const { data: dep, error } = await sb.from('deposits').select('*').eq('id', depositId).single();
+  if(error || !dep){ alert('Deposit not found'); return; }
   if(dep.status === 'approved'){ alert('Already approved'); return; }
-
-  // Handle both column names: amount_grind OR amount
-  const amt = Number(dep.amount_grind ?? dep.amount ?? 0);
-  if(!amt){ alert('Deposit amount is 0, cannot credit'); return; }
-
-  // 2. Mark approved FIRST
-  const { error: updErr } = await sb.from('deposits').update({ status: 'approved' }).eq('id', id);
-  if(updErr){ alert('Could not approve: ' + updErr.message); return; }
-
-  // 3. CREDIT BALANCE - THIS WAS MISSING BEFORE
-  const { data: prof, error: profErr } = await sb.from('profiles').select('balance_grind').eq('id', dep.user_id).single();
-  if(profErr){ alert('Deposit approved but profile not found: ' + profErr.message); return; }
-
-  const newBal = Number(prof.balance_grind || 0) + amt;
-  const { error: balErr } = await sb.from('profiles').update({ balance_grind: newBal }).eq('id', dep.user_id);
-  if(balErr){
-    alert('Approved but balance failed: ' + balErr.message + ' - Run SQL fix in Supabase');
-    return;
-  }
-
-  alert(`✅ Approved + Credited ${amt} G to user`);
-  if(typeof loadAdmin === 'function') loadAdmin();
-  loadWallet();
+  const userId = getUserIdFromRow(dep);
+  const amount = getAmountFromRow(dep);
+  if(!userId || !amount){ alert('Deposit missing user/amount'); return; }
+  const { data: prof } = await sb.from('profiles').select('balance_grind').eq('id', userId).single();
+  const bal = Number(prof?.balance_grind || 0);
+  const { error: updErr } = await sb.from('profiles').update({ balance_grind: bal + amount }).eq('id', userId);
+  if(updErr){ alert('Credit failed: '+updErr.message); return; }
+  await sb.from('deposits').update({ status: 'approved' }).eq('id', depositId);
+  alert(`✅ Deposit APPROVED. +${amount} G credited. User new balance: ${(bal+amount).toFixed(2)} G`);
+  location.reload();
 }
 window.approveDeposit = approveDeposit;
 
-async function rejectDeposit(id){
-  if(!await isAdmin()) return;
-  await sb.from('deposits').update({ status: 'rejected' }).eq('id', id);
-  alert('Deposit rejected');
-  if(typeof loadAdmin === 'function') loadAdmin();
+async function rejectDeposit(depositId){
+  await sb.from('deposits').update({ status: 'rejected' }).eq('id', depositId);
+  alert('Deposit rejected. Balance NOT credited.');
+  location.reload();
 }
 window.rejectDeposit = rejectDeposit;
 
-async function approveWithdrawal(id){
-  if(!await isAdmin()) return;
-  const { data: w } = await sb.from('withdrawals').select('*').eq('id', id).single();
-  if(!w) return;
-  const amt = Number(w.amount_grind ?? w.amount ?? 0);
-  // Deduct balance on approval
-  const { data: prof } = await sb.from('profiles').select('balance_grind').eq('id', w.user_id).single();
-  const newBal = Number(prof?.balance_grind || 0) - amt;
-  await sb.from('profiles').update({ balance_grind: newBal }).eq('id', w.user_id);
-  await sb.from('withdrawals').update({ status: 'approved' }).eq('id', id);
-  alert('Withdrawal approved + deducted');
-  if(typeof loadAdmin === 'function') loadAdmin();
+async function loadMyDeposits(userId){
+  const el = document.getElementById('myDeposits');
+  if(!el) return;
+  let { data } = await sb.from('deposits').select('*').eq('user_id', userId).order('created_at',{ascending:false}).limit(20);
+  if(!data || data.length===0){
+    const r2 = await sb.from('deposits').select('*').eq('fan_id', userId).order('created_at',{ascending:false}).limit(20);
+    data = r2.data || [];
+  }
+  if(!data || data.length===0){ el.innerHTML='<p class="small">No deposits yet.</p>'; return; }
+  el.innerHTML = data.map(d=>`<div class="card" style="padding:10px"><b>+${getAmountFromRow(d)} G</b> • ${d.pay_method||d.method||''} • ${d.pay_reference||d.reference||''} • <span>${d.status}</span></div>`).join('');
+}
+
+// ---------- WITHDRAWALS ----------
+async function submitWithdrawal(amount, method, number){
+  const user = await getCurrentUser();
+  if(!user){ alert('Login first'); return; }
+  amount = Number(amount);
+  if(!amount || amount < 2.5){ alert('Minimum withdrawal is 2.5 G (M25)'); return; }
+  if(!number){ alert('Enter Mpesa / EcoCash number'); return; }
+  const { data: prof } = await sb.from('profiles').select('balance_grind').eq('id', user.id).single();
+  const bal = Number(prof?.balance_grind || 0);
+  if(bal < amount){ alert(`Not enough balance. You have ${bal.toFixed(2)} G, need ${amount} G`); return; }
+  const { error } = await sb.from('withdrawals').insert({
+    user_id: user.id, fan_id: user.id, artist_id: user.id,
+    amount_grind: amount, amount: amount,
+    pay_method: method, method: method,
+    phone: number, account_number: number, pay_reference: number,
+    status: 'pending'
+  });
+  if(error){ alert('Withdrawal failed: '+error.message); return; }
+  alert('✅ Withdrawal sent! Wait for Admin approval. Balance will drop after approval.');
+  location.reload();
+}
+window.submitWithdrawal = submitWithdrawal;
+window.requestWithdrawal = submitWithdrawal;
+
+async function approveWithdrawal(withdrawalId){
+  const { data: wd, error } = await sb.from('withdrawals').select('*').eq('id', withdrawalId).single();
+  if(error || !wd){ alert('Withdrawal not found: '+(error?.message||'')); return; }
+  if(wd.status === 'approved'){ alert('Already approved'); return; }
+  if(wd.status === 'rejected'){ alert('Already rejected'); return; }
+  const userId = getUserIdFromRow(wd);
+  const amount = getAmountFromRow(wd);
+  if(!userId || !amount){ alert('Withdrawal missing user/amount: '+JSON.stringify(wd)); return; }
+  const { data: prof } = await sb.from('profiles').select('balance_grind').eq('id', userId).single();
+  const bal = Number(prof?.balance_grind || 0);
+  if(bal < amount){ alert(`Cannot approve. User has ${bal} G but wants ${amount} G`); return; }
+  const { error: dErr } = await sb.from('profiles').update({ balance_grind: bal - amount }).eq('id', userId);
+  if(dErr){ alert('Deduct failed: '+dErr.message); return; }
+  await sb.from('withdrawals').update({ status: 'approved' }).eq('id', withdrawalId);
+  alert(`✅ Withdrawal APPROVED. -${amount} G deducted. User new balance: ${(bal-amount).toFixed(2)} G. Now pay them M${(amount*10).toFixed(0)} via ${wd.pay_method||wd.method||'Mpesa'}`);
+  location.reload();
 }
 window.approveWithdrawal = approveWithdrawal;
+window.approveWithdraw = approveWithdrawal;
+window.approveWithdrawalRequest = approveWithdrawal;
 
+async function rejectWithdrawal(withdrawalId){
+  await sb.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
+  alert('Withdrawal rejected. Balance NOT deducted.');
+  location.reload();
+}
+window.rejectWithdrawal = rejectWithdrawal;
+window.rejectWithdraw = rejectWithdrawal;
+
+async function loadMyWithdrawals(userId){
+  const el = document.getElementById('myWithdrawals');
+  if(!el) return;
+  let { data } = await sb.from('withdrawals').select('*').eq('user_id', userId).order('created_at',{ascending:false}).limit(20);
+  if(!data || data.length===0){
+    const r2 = await sb.from('withdrawals').select('*').eq('fan_id', userId).order('created_at',{ascending:false}).limit(20);
+    data = r2.data || [];
+  }
+  if(!data || data.length===0){ el.innerHTML='<p class="small">No withdrawals yet.</p>'; return; }
+  el.innerHTML = data.map(w=>`<div class="card" style="padding:10px"><b>-${getAmountFromRow(w)} G</b> • ${w.pay_method||w.method||''} • ${w.phone||w.account_number||''} • <span>${w.status}</span></div>`).join('');
+}
+
+// ---------- BUY SONG - WALLET ----------
+async function buySongWithWallet(songId, price, artistId){
+  const user = await getCurrentUser();
+  if(!user){ alert('Login first'); location.href='auth.html'; return; }
+  price = Number(price);
+  const { data: me } = await sb.from('profiles').select('balance_grind').eq('id', user.id).single();
+  const bal = Number(me?.balance_grind || 0);
+  if(bal < price){ alert(`Not enough balance. You have ${bal} G, need ${price} G`); return; }
+  const { data: already } = await sb.from('purchases').select('id').eq('fan_id', user.id).eq('song_id', songId).maybeSingle();
+  if(already){ alert('You already own this. Go to Library.'); return; }
+  const { error: dErr } = await sb.from('profiles').update({ balance_grind: bal - price }).eq('id', user.id);
+  if(dErr){ alert('Deduct failed: '+dErr.message); return; }
+  if(artistId && artistId !== user.id){
+    const { data: artist } = await sb.from('profiles').select('balance_grind').eq('id', artistId).single();
+    const royalty = price * 0.63;
+    await sb.from('profiles').update({ balance_grind: Number(artist?.balance_grind||0) + royalty }).eq('id', artistId);
+  }
+  const { error: pErr } = await sb.from('purchases').insert({
+    fan_id: user.id, user_id: user.id, song_id: songId,
+    price_grind: price, amount: price,
+    pay_method: 'Wallet', pay_reference: 'WALLET-'+Date.now(), status: 'approved'
+  });
+  if(pErr){ alert('Purchase save failed: '+pErr.message); return; }
+  const { data: s } = await sb.from('songs').select('total_buys').eq('id', songId).single();
+  if(s) await sb.from('songs').update({ total_buys: Number(s.total_buys||0)+1 }).eq('id', songId);
+  alert(`✅ Bought! -${price} G. New balance: ${(bal-price).toFixed(2)} G`);
+  location.href='library.html';
+}
+window.buySongWithWallet = buySongWithWallet;
+window.buySong = buySongWithWallet;
+
+// ---------- LIBRARY ----------
+async function loadLibrary(){
+  const el = document.getElementById('librarySongs');
+  if(!el) return;
+  const user = await getCurrentUser();
+  if(!user){ el.innerHTML='<p>Login to see Library</p>'; return; }
+  const { data: purchases } = await sb.from('purchases').select('song_id,status').eq('fan_id', user.id).eq('status','approved');
+  const ids = (purchases||[]).map(p=>p.song_id);
+  if(ids.length===0){ el.innerHTML='<p class="small">No songs yet. Go to Discover and Buy.</p>'; return; }
+  const { data: songs } = await sb.from('songs').select('*').in('id', ids);
+  el.innerHTML = (songs||[]).map(s=>`<div class="card song"><img src="${s.cover_url||''}"><div class="meta"><b>${s.title}</b><small>${s.artist_name}</small></div><audio controls src="${s.audio_url||s.file_url||''}" style="width:100%"></audio></div>`).join('');
+}
+
+// ---------- ADMIN ----------
 async function loadAdmin(){
-  if(!await isAdmin()){
-    const el = document.getElementById('adminContent');
-    if(el) el.innerHTML = '<p>Admin only. Login as admin.</p>';
-    return;
+  const pendingDepositsEl = document.getElementById('pendingDeposits');
+  const pendingWithdrawalsEl = document.getElementById('pendingWithdrawals');
+  const pendingPurchasesEl = document.getElementById('pendingPurchases');
+  const pendingSongsEl = document.getElementById('pendingSongs');
+  if(pendingDepositsEl){
+    const { data } = await sb.from('deposits').select('*').eq('status','pending').order('created_at',{ascending:false});
+    pendingDepositsEl.innerHTML = (!data||data.length===0) ? '<p class="small">No pending deposits</p>' : data.map(d=>`<div class="card" style="padding:10px"><b>+${getAmountFromRow(d)} G</b> • ${d.pay_method||d.method||''} • ${d.pay_reference||d.reference||''} • User: ${getUserIdFromRow(d)?.slice(0,8)}<br><button onclick="approveDeposit('${d.id}')">Approve + Credit</button> <button class="ghost" onclick="rejectDeposit('${d.id}')">Reject</button></div>`).join('');
   }
-  // Load pending deposits
-  const { data: deps } = await sb.from('deposits').select('*, profiles(email)').eq('status', 'pending').order('created_at', { ascending: false });
-  const depEl = document.getElementById('pendingDeposits') || document.getElementById('adminDeposits');
-  if(depEl){
-    if(!deps || deps.length === 0) depEl.innerHTML = '<p>No pending deposits</p>';
-    else depEl.innerHTML = deps.map(d => `
-      <div style="border:1px solid #333;padding:10px;margin:8px 0;border-radius:8px">
-        <b>${d.profiles?.email || d.user_id}</b> — ${d.amount_grind ?? d.amount} G — ${d.method} — Ref: ${d.reference}<br>
-        <button onclick="approveDeposit('${d.id}')">Approve + Credit</button>
-        <button onclick="rejectDeposit('${d.id}')">Reject</button>
-      </div>
-    `).join('');
+  if(pendingWithdrawalsEl){
+    const { data } = await sb.from('withdrawals').select('*').eq('status','pending').order('created_at',{ascending:false});
+    pendingWithdrawalsEl.innerHTML = (!data||data.length===0) ? '<p class="small">No pending withdrawals</p>' : data.map(w=>`<div class="card" style="padding:10px"><b>-${getAmountFromRow(w)} G</b> • ${w.pay_method||w.method||''} • ${w.phone||w.account_number||''} • User: ${getUserIdFromRow(w)?.slice(0,8)}<br><button onclick="approveWithdrawal('${w.id}')">Approve + Deduct</button> <button class="ghost" onclick="rejectWithdrawal('${w.id}')">Reject</button></div>`).join('');
   }
-  // Load pending withdrawals
-  const { data: withs } = await sb.from('withdrawals').select('*, profiles(email)').eq('status', 'pending').order('created_at', { ascending: false });
-  const withEl = document.getElementById('pendingWithdrawals');
-  if(withEl){
-    if(!withs || withs.length === 0) withEl.innerHTML = '<p>No pending withdrawals</p>';
-    else withEl.innerHTML = withs.map(w => `
-      <div style="border:1px solid #333;padding:10px;margin:8px 0;border-radius:8px">
-        <b>${w.profiles?.email || w.user_id}</b> — ${w.amount_grind ?? w.amount} G — Phone: ${w.phone}<br>
-        <button onclick="approveWithdrawal('${w.id}')">Approve</button>
-      </div>
-    `).join('');
+  if(pendingPurchasesEl){
+    const { data } = await sb.from('purchases').select('*').eq('status','pending').order('created_at',{ascending:false});
+    pendingPurchasesEl.innerHTML = (!data||data.length===0) ? '<p class="small">No pending purchases</p>' : data.map(p=>`<div class="card" style="padding:10px"><b>${p.price_grind} G</b> • ${p.pay_method} • ${p.pay_reference} • Song: ${p.song_id?.slice(0,8)}<br><button onclick="approvePurchase('${p.id}')">Approve Unlock</button> <button class="ghost" onclick="rejectPurchase('${p.id}')">Reject</button></div>`).join('');
+  }
+  if(pendingSongsEl){
+    const { data } = await sb.from('songs').select('*').eq('status','pending').order('created_at',{ascending:false});
+    pendingSongsEl.innerHTML = (!data||data.length===0) ? '<p class="small">No pending songs</p>' : data.map(s=>`<div class="card" style="padding:10px"><b>${s.title}</b> • ${s.artist_name}<br><button onclick="approveSong('${s.id}')">Approve Song</button> <button class="ghost" onclick="rejectSong('${s.id}')">Reject</button></div>`).join('');
   }
 }
 window.loadAdmin = loadAdmin;
 
+async function approvePurchase(purchaseId){
+  const { data: p } = await sb.from('purchases').select('*').eq('id', purchaseId).single();
+  if(!p) return;
+  await sb.from('purchases').update({ status: 'approved' }).eq('id', purchaseId);
+  const { data: song } = await sb.from('songs').select('*').eq('id', p.song_id).single();
+  if(song){
+    const artistId = song.artist_id || song.user_id || song.owner_id;
+    const fanId = getUserIdFromRow(p);
+    if(artistId && artistId !== fanId){
+      const { data: artist } = await sb.from('profiles').select('balance_grind').eq('id', artistId).single();
+      await sb.from('profiles').update({ balance_grind: Number(artist?.balance_grind||0) + Number(p.price_grind||0)*0.63 }).eq('id', artistId);
+    }
+    await sb.from('songs').update({ total_buys: Number(song.total_buys||0)+1 }).eq('id', song.id);
+  }
+  alert('Purchase approved, song unlocked, artist paid 63%');
+  location.reload();
+}
+window.approvePurchase = approvePurchase;
+async function rejectPurchase(id){ await sb.from('purchases').update({status:'rejected'}).eq('id',id); location.reload(); }
+window.rejectPurchase = rejectPurchase;
+async function approveSong(id){ await sb.from('songs').update({status:'approved'}).eq('id',id); alert('Song approved'); location.reload(); }
+window.approveSong = approveSong;
+async function rejectSong(id){ await sb.from('songs').update({status:'rejected'}).eq('id',id); location.reload(); }
+window.rejectSong = rejectSong;
+
 // ---------- AUTO LOAD ----------
-document.addEventListener('DOMContentLoaded', () => {
-  if(document.getElementById('walletBalance') || document.getElementById('balanceGrind') || document.getElementById('balance')) loadWallet();
-  if(document.getElementById('pendingDeposits') || document.getElementById('adminDeposits') || document.getElementById('adminContent')) loadAdmin();
+document.addEventListener('DOMContentLoaded', ()=>{
+  loadBalanceBadge();
+  if(document.getElementById('walletBalance')) loadWallet();
+  if(document.getElementById('pendingDeposits') || document.getElementById('pendingWithdrawals')) loadAdmin();
+  if(document.getElementById('librarySongs')) loadLibrary();
 });
