@@ -1,11 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#d4ff3f">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Marotholi Les-Pot</title>
 <meta name="theme-color" content="#d4ff3f">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
 <style>
 *{box-sizing:border-box}body{background:#0f0f0f;color:#fff;font-family:system-ui,sans-serif;margin:0;padding-bottom:140px}
 header{background:#d4ff3f;color:#000;padding:14px;text-align:center;font-weight:900;position:sticky;top:0;z-index:10;font-size:18px}
@@ -33,6 +37,7 @@ button.ghost{background:#333;color:#fff}
 .price-tag{font-weight:900;color:#d4ff3f}
 .small{font-size:13px;opacity:.7}
 .center{text-align:center}
+a{color:#d4ff3f}
 </style>
 </head>
 <body>
@@ -40,16 +45,26 @@ button.ghost{background:#333;color:#fff}
 <div id="whoAmI" style="text-align:center;font-size:12px;opacity:.7;padding:6px">Not logged in</div>
 <div class="wrap">
 <div id="msg"></div>
+<!-- REDIRECT NOTICE - keeps linking to new separate pages -->
+<div class="card center" style="border-color:#d4ff3f">
+  <h2>Welcome to LES-POT 🇱🇸</h2>
+  <p class="small">Discover • Library • Upload • Wallet • Account</p>
+  <button onclick="location.href='discover.html'">🔥 ENTER DISCOVER →</button>
+  <button class="ghost" onclick="location.href='auth.html'">👤 LOGIN / REGISTER</button>
+  <button class="ghost" onclick="location.href='wallet.html'">💰 WALLET</button>
+  <p class="small">If you stay here, the app below also works — same account, same wallet.</p>
+</div>
+
 <div id="page-auth" class="page">
 <h2>Account</h2>
 <div class="card" id="loginCard">
 <h2>LOGIN</h2>
-<input id="lEmail" type="email" placeholder="Email">
+<input id="lEmail" type="email" placeholder="Email - real Gmail">
 <input id="lPass" type="password" placeholder="Password">
 <button onclick="doLogin()">Login</button>
 <div id="lMsg" style="font-size:13px;text-align:center;margin-top:8px"></div>
 <span class="link" onclick="showReg()">New? Register</span>
-<span class="link" style="color:#fff;opacity:.7">Forgot Password? Use Security Question</span>
+<span class="link" style="color:#fff;opacity:.7" onclick="location.href='auth.html'">Forgot Password? Reset in Auth page</span>
 </div>
 <div class="card hidden" id="regCard">
 <h2>Register</h2>
@@ -66,63 +81,58 @@ button.ghost{background:#333;color:#fff}
 <span class="link" onclick="showLogin()">Already have account? Login</span>
 </div>
 <button onclick="doLogout()" class="ghost">LOGOUT</button>
-<div style="text-align:center;opacity:.6;font-size:12px;margin-top:20px">© MAROTHOLI GRINDERS • MAROTHOLI LES-POT • Les-Pot GrindPay</div>
 </div>
+
 <div id="page-discover" class="page active">
 <h2>🔥 Discover</h2>
 <div id="discoverList"><p class="small">Loading songs...</p></div>
 <div id="buyModal" class="card hidden" style="border-color:#d4ff3f">
-<h3 id="buyTitle">Buy Song</h3><p id="buyPrice"></p><br>
+<h3 id="buyTitle">Buy Song</h3><p id="buyPrice"></p><p id="myBalText" class="small"></p><br>
 <label class="small">1. How YOU will pay:</label>
-<select id="payMethod" onchange="updatePayInfo()"><option>Mpesa</option><option>EcoCash</option><option>Visa</option><option>Bank</option><option>Payfast</option></select>
-<div class="card" style="background:#0a0a10">
+<select id="payMethod" onchange="updatePayInfo()"><option value="Wallet">💰 Wallet Balance (Instant)</option><option>Mpesa</option><option>EcoCash</option><option>Visa</option><option>Bank</option><option>Payfast</option></select>
+<div id="walletInfo" class="card" style="background:#0a0a10"><p class="small">Instant unlock. No OTP. Artist gets 63% now.</p></div>
+<div id="extInfo" class="card hidden" style="background:#0a0a10">
 <p style="color:#fff;font-weight:800">2. Pay MAROTHOLI GRINDERS:</p>
 <div id="payDetails" style="color:#d4ff3f;font-weight:800;line-height:1.6"></div>
-<p class="small">Pay EXACT amount shown above. Keep your OTP / Reference.</p>
+<p class="small">Pay EXACT amount. Keep OTP / Reference.</p>
+<label class="small">3. Paste OTP / Reference:</label>
+<input id="payRef" placeholder="e.g. MP250... / Tx123...">
 </div>
-<label class="small">3. Paste OTP / Verification Reference from your bank:</label>
-<input id="payRef" placeholder="e.g. hi420... / Tx1011...">
-<button onclick="submitBuy()">SUBMIT FOR APPROVAL →</button>
+<button onclick="submitBuy()">BUY NOW →</button>
 <button class="ghost" onclick="closeBuy()">Cancel</button>
 <p id="buyMsg" class="small center"></p>
 </div>
 </div>
+
 <div id="page-library" class="page">
 <h2>My Bought Tracks</h2>
-<p class="small">Stream in app only. Song never leaves app.</p>
-<div id="libraryList"><p class="small">Stay tuned...</p></div>
+<div id="libraryList"><p class="small">Loading...</p></div>
+<p><a href="library.html">Open full Library page →</a></p>
 </div>
+
 <div id="page-upload" class="page">
 <h2>⬆️ Upload Song</h2>
 <div class="card">
-<label class="small">Song Title</label>
-<input id="upTitle" placeholder="e.g. Test">
-<label class="small">Artist Name</label>
-<input id="upArtist" placeholder="e.g. FlackoBird">
-<label class="small">Price in Grind (G) — e.g. 0.45</label>
-<input id="upPrice" type="number" step="0.01" placeholder="0.2">
-<label class="small">Cover ART (optional)</label>
-<input id="upCover" type="file" accept="image/*">
-<label class="small">Audio File — MP3</label>
-<input id="upAudio" type="file" accept="audio/*">
+<label class="small">Song Title</label><input id="upTitle" placeholder="e.g. Test">
+<label class="small">Artist Name</label><input id="upArtist" placeholder="e.g. FlackoBird">
+<label class="small">Price in Grind (G) — e.g. 0.45</label><input id="upPrice" type="number" step="0.01" placeholder="0.2">
+<label class="small">Cover ART (optional)</label><input id="upCover" type="file" accept="image/*">
+<label class="small">Audio File — MP3</label><input id="upAudio" type="file" accept="audio/*">
 <button onclick="doUpload()">UPLOAD SONG →</button>
 <p id="upMsg" class="small center"></p>
 </div>
+<p><a href="upload.html">Open full Upload page →</a></p>
 </div>
+
 <div id="page-wallet" class="page">
 <h2>💰 Wallet</h2>
-<div class="card center"><h1 id="balBig">0.00 G</h1><p class="small">Your Royalties (63%) • Min withdraw 2.5G = M25</p></div>
+<div class="card center"><h1 id="balBig">0.00 G</h1><p class="small">Your Balance • Min withdraw 2.5G = M25</p></div>
 <div class="card" style="border-color:#d4ff3f">
 <h3>➕ Top Up / Deposit</h3>
-<p class="small">Stack Grinds to your balance to buy songs.</p>
 <input id="depAmt" type="number" step="0.1" placeholder="Amount in G e.g. 5">
 <select id="depMethod" onchange="updateDepInfo()"><option>Mpesa</option><option>EcoCash</option><option>Bank / Visa</option><option>Postbank</option><option>Payfast</option></select>
-<div class="card" style="background:#0a0a10">
-<p style="color:#fff;font-weight:800">Pay MAROTHOLI GRINDERS to:</p>
-<div id="depDetails" style="color:#d4ff3f;font-weight:800;line-height:1.6"></div>
-<p class="small">Pay EXACT amount. 1G = M10. Keep your OTP / Reference.</p>
-</div>
-<input id="depRef" placeholder="OTP / Reference from your payment">
+<div class="card" style="background:#0a0a10"><div id="depDetails" style="color:#d4ff3f;font-weight:800;line-height:1.6"></div><p class="small">Pay EXACT amount. 1G = M10. Keep OTP.</p></div>
+<input id="depRef" placeholder="OTP / Reference">
 <button onclick="requestDeposit()">SEND DEPOSIT FOR APPROVAL →</button>
 <p id="depMsg" class="small center"></p>
 </div>
@@ -130,22 +140,26 @@ button.ghost{background:#333;color:#fff}
 <h3>Request Withdrawal</h3>
 <input id="wAmt" type="number" step="0.1" placeholder="Amount in G (min 2.5)">
 <select id="wMethod"><option>Mpesa</option><option>EcoCash</option><option>Bank / Visa</option><option>Postbank</option></select>
-<input id="wDetails" placeholder="Your number / account where to receive">
+<input id="wDetails" placeholder="Your number / account">
 <button onclick="requestW()">REQUEST WITHDRAWAL →</button>
 <p id="wMsg" class="small center"></p>
 </div>
 <div class="card"><h3>My Deposits</h3><div id="depList"></div></div>
 <div class="card"><h3>My Withdrawals</h3><div id="wList"></div></div>
+<p><a href="wallet.html">Open full Wallet page →</a></p>
 </div>
+
 <div id="page-admin" class="page">
 <h2>Admin Panel</h2>
-<p class="small">Only if your profile has is_admin = true</p>
+<p class="small">Only if is_admin = true</p>
 <button onclick="loadAdmin()">REFRESH ADMIN</button>
-<div class="card"><h3>Pending Song Purchases</h3><div id="adminPurchases"></div></div>
+<div class="card"><h3>Pending Purchases</h3><div id="adminPurchases"></div></div>
 <div class="card"><h3>Pending Deposits</h3><div id="adminDeposits"></div></div>
 <div class="card"><h3>Pending Withdrawals</h3><div id="adminWithdrawals"></div></div>
+<p><a href="admin.html">Open full Admin page →</a></p>
 </div>
 </div>
+
 <div id="player">
 <div id="nowPlaying"></div>
 <audio id="audio" controls controlsList="nodownload"></audio>
@@ -158,39 +172,38 @@ button.ghost{background:#333;color:#fff}
 <button onclick="showPage('admin')" id="nav-admin">🛠 Admin</button>
 <button onclick="showPage('auth')" id="nav-auth">👤 Account</button>
 </div>
+
 <script>
-const SUPABASE_URL = "https://mmkxiniybctmgoozaecp.supabase.co";
-const SUPABASE_KEY = "sb_publishable_wWhjXCZ4JWfGlCIG95kzPg_WXqzfVDP";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.sb = sb;
 function esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 let currentIsPreview = false;
+let currentSong=null;
+let myBalanceIdx=0;
 function setupSecurePlayer(){
   const a = document.getElementById('audio');
-  a.addEventListener('timeupdate', function(){
-    if(currentIsPreview && a.currentTime >= 30){ a.pause(); a.currentTime = 0; alert('Preview ended - Buy to hear full song'); }
-  });
-  a.addEventListener('seeking', function(){
-    if(currentIsPreview && a.currentTime > 30) a.currentTime = 0;
-  });
+  a.addEventListener('timeupdate', function(){ if(currentIsPreview && a.currentTime >= 30){ a.pause(); a.currentTime = 0; alert('Preview ended - Buy to hear full song'); } });
+  a.addEventListener('seeking', function(){ if(currentIsPreview && a.currentTime > 30) a.currentTime = 0; });
 }
 function updatePayInfo(){
   const m = document.getElementById('payMethod').value;
+  const isWallet = m==='Wallet';
+  document.getElementById('walletInfo').classList.toggle('hidden', !isWallet);
+  document.getElementById('extInfo').classList.toggle('hidden', isWallet);
   const el = document.getElementById('payDetails');
-  if(m==='Mpesa') el.innerHTML = 'Mpesa: 59070688<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Tsosane Molibeli</span>';
-  if(m==='EcoCash') el.innerHTML = 'EcoCash MERCHANT<br>Merchant Code: 128235<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Marotholi Lespot MSU<br>Pay as MERCHANT, not Send Money</span>';
-  if(m==='Visa') el.innerHTML = 'Visa / Card: Use Payfast<br>Merchant: 37129143<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Tsosane Molibeli</span>';
-  if(m==='Bank') el.innerHTML = 'Bank: Lesotho PostBank<br>Acc: 1040278800016<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Marotholi Lespot</span>';
-  if(m==='Payfast') el.innerHTML = 'Payfast Merchant: 37129143<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Tsosane Molibeli</span>';
+  if(!el) return;
+  if(m==='Mpesa') el.innerHTML = 'Mpesa: 59070688<br><span style="color:#fff;font-size:13px">Name: Tsosane Molibeli</span>';
+  if(m==='EcoCash') el.innerHTML = 'EcoCash MERCHANT<br>Merchant Code: 128235<br><span style="color:#fff;font-size:13px">Name: Marotholi Lespot MSU</span>';
+  if(m==='Visa') el.innerHTML = 'Visa / Card: Use Payfast<br>Merchant: 37129143';
+  if(m==='Bank') el.innerHTML = 'Bank: Lesotho PostBank<br>Acc: 1040278800016<br><span style="color:#fff;font-size:13px">Name: Marotholi Lespot</span>';
+  if(m==='Payfast') el.innerHTML = 'Payfast Merchant: 37129143';
 }
 function updateDepInfo(){
   const m = document.getElementById('depMethod').value;
   const el = document.getElementById('depDetails');
-  if(m==='Mpesa') el.innerHTML = 'Mpesa: 59070688<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Tsosane Molibeli</span>';
-  if(m==='EcoCash') el.innerHTML = 'EcoCash MERCHANT<br>Merchant Code: 128235<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Marotholi Lespot MSU<br>Pay as MERCHANT, not Send Money</span>';
-  if(m==='Bank / Visa') el.innerHTML = 'Bank: Lesotho PostBank<br>Acc: 1040278800016<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Tsosane Molibeli</span>';
-  if(m==='Postbank') el.innerHTML = 'Postbank Acc: 1040278800016<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Marotholi Lespot</span>';
-  if(m==='Payfast') el.innerHTML = 'Payfast Merchant: 37129143<br><span style="color:#fff;font-size:13px;font-weight:400">Name: Tsosane Molibeli</span>';
+  if(m==='Mpesa') el.innerHTML = 'Mpesa: 59070688<br><span style="color:#fff;font-size:13px">Name: Tsosane Molibeli</span>';
+  if(m==='EcoCash') el.innerHTML = 'EcoCash MERCHANT<br>Merchant Code: 128235';
+  if(m==='Bank / Visa') el.innerHTML = 'Bank: Lesotho PostBank<br>Acc: 1040278800016';
+  if(m==='Postbank') el.innerHTML = 'Postbank Acc: 1040278800016';
+  if(m==='Payfast') el.innerHTML = 'Payfast Merchant: 37129143';
 }
 function showPage(p){
   document.querySelectorAll('.page').forEach(function(x){ x.classList.remove('active'); });
@@ -205,57 +218,51 @@ function showPage(p){
 }
 function showLogin(){ document.getElementById('regCard').classList.add('hidden'); document.getElementById('loginCard').classList.remove('hidden'); }
 function showReg(){ document.getElementById('loginCard').classList.add('hidden'); document.getElementById('regCard').classList.remove('hidden'); }
+
 async function doRegister(){
   const name=document.getElementById('rName').value.trim();
   const phone=document.getElementById('rPhone').value.trim();
   const country=document.getElementById('rCountry').value;
   const gender=document.getElementById('rGender').value;
-  const email=document.getElementById('rEmail').value.trim();
+  const email=document.getElementById('rEmail').value.trim().toLowerCase();
   const pass=document.getElementById('rPass').value;
   const q=document.getElementById('rQ').value;
   const ans=document.getElementById('rA').value.trim();
   const msg=document.getElementById('rMsg');
-  if(!name||!phone||!gender||!email||!pass||!ans){msg.textContent="Fill ALL fields. Real info please.";return;}
+  if(!name||!phone||!gender||!email||!pass||!ans){msg.textContent="Fill ALL fields.";return;}
   const clean=phone.replace(/\D/g,'');
-  if(clean.length!==8){msg.textContent="Lesotho number must be 8 digits, e.g. 59812345";return;}
+  if(clean.length!==8){msg.textContent="Lesotho number must be 8 digits";return;}
   msg.textContent="Creating account...";
-  const r1 = await sb.auth.signUp({email:email,password:pass});
+  const r1 = await sb.auth.signUp({email,password:pass, options:{data:{full_name:name, phone:clean, country, gender, security_question:q, security_answer:ans}, emailRedirectTo: location.origin + '/discover.html'}});
   if(r1.error){msg.textContent=r1.error.message;return;}
   const user = r1.data.user;
-  if(user){ await sb.from('profiles').upsert({id:user.id,email:email,name:name,phone:clean,country:country,gender:gender,security_q:q,security_a:ans}); }
-  msg.textContent="✅ Account created! Now login."; showLogin();
+  if(user){ await sb.from('profiles').upsert({id:user.id,email:email,full_name:name,phone:clean,grind_balance:0}, {onConflict:'id'}); }
+  msg.textContent="✅ Account created! Check Gmail, then Login."; showLogin();
 }
 async function doLogin(){
-  const email=document.getElementById('lEmail').value.trim();
+  const email=document.getElementById('lEmail').value.trim().toLowerCase();
   const pass=document.getElementById('lPass').value;
   const msg=document.getElementById('lMsg');
   if(!email||!pass){msg.textContent="Enter email + password";return;}
   msg.textContent="Logging in...";
-  const r1 = await sb.auth.signInWithPassword({email:email,password:pass});
+  const r1 = await sb.auth.signInWithPassword({email,password:pass});
   if(r1.error){msg.textContent=r1.error.message;return;}
-  msg.textContent="✅ Logged in!"; showPage('discover');
+  msg.textContent="✅ Logged in!"; showPage('discover'); showWho();
 }
-async function doLogout(){ await sb.auth.signOut(); showPage('auth'); }
-async function getCurrentUser(){
-  const r1 = await sb.auth.getUser();
-  return r1.data.user;
-}
+async function doLogout(){ await sb.auth.signOut(); showPage('auth'); showWho(); }
+async function getCurrentUser(){ const r1 = await sb.auth.getUser(); return r1.data.user; }
 async function isAdmin(){
   const user = await getCurrentUser(); if(!user) return false;
   const r1 = await sb.from('profiles').select('is_admin').eq('id',user.id).single();
-  const d = r1.data;
-  return d && d.is_admin===true;
+  return r1.data && r1.data.is_admin===true;
 }
-</script>
-<script>
-let currentSong=null;
+
 async function loadDiscover(){
   const list=document.getElementById('discoverList');
   const r1 = await sb.from('songs').select('*').order('created_at',{ascending:false});
   const songs = r1.data;
-  const err1 = r1.error;
-  if(err1){list.innerHTML="Error: "+esc(err1.message);return;}
-  if(!songs||songs.length===0){list.innerHTML="<p class='small'>No songs yet. Be the first to upload.</p>";return;}
+  if(r1.error){list.innerHTML="Error: "+esc(r1.error.message);return;}
+  if(!songs||songs.length===0){list.innerHTML="<p class='small'>No songs yet. Be first to <a href='upload.html'>upload</a>.</p>";return;}
   let html="";
   songs.forEach(function(s){
     const cover = s.cover_url ? '<img src="'+esc(s.cover_url)+'" class="cover">' : '<div class="cover"></div>';
@@ -265,10 +272,12 @@ async function loadDiscover(){
   });
   list.innerHTML=html;
 }
-function openBuy(id,title,artist,price,artistId){
+async function openBuy(id,title,artist,price,artistId){
   currentSong={id:id,title:title,artist:artist,price:price,artist_id:artistId};
   document.getElementById('buyTitle').textContent="Buy: "+title+" — "+artist;
-  document.getElementById('buyPrice').textContent=price+"G = M"+(parseFloat(price)*10).toFixed(2);
+  document.getElementById('buyPrice').textContent=price+"G = M"+(parseFloat(price)*10).toFixed(2)+" • Artist gets 63%";
+  const u = await getCurrentUser();
+  if(u){ const {data:p}=await sb.from('profiles').select('grind_balance').eq('id',u.id).single(); myBalanceIdx=Number(p?.grind_balance||0); document.getElementById('myBalText').textContent="Your Wallet: "+myBalanceIdx.toFixed(2)+" G"; }
   document.getElementById('buyModal').classList.remove('hidden');
   updatePayInfo();
   document.getElementById('buyModal').scrollIntoView({behavior:'smooth'});
@@ -277,20 +286,20 @@ function closeBuy(){ document.getElementById('buyModal').classList.add('hidden')
 async function submitBuy(){
   const user = await getCurrentUser();
   if(!user){showPage('auth');return;}
-  const ref=document.getElementById('payRef').value.trim();
   const method=document.getElementById('payMethod').value;
   const msg=document.getElementById('buyMsg');
+  const price = Number(currentSong.price);
+  if(method==='Wallet'){
+    if(myBalanceIdx < price){ msg.textContent=`Not enough. You have ${myBalanceIdx} G, need ${price} G. Top up in Wallet.`; return; }
+    await buySongWithWallet(currentSong.id, price, currentSong.artist_id);
+    return;
+  }
+  const ref=document.getElementById('payRef').value.trim();
   if(!ref){msg.textContent="Paste OTP / Reference first.";return;}
   msg.textContent="Sending...";
-  let artistId = currentSong.artist_id;
-  if(!artistId){
-    const sr = await sb.from('songs').select('artist_id,uploader_id').eq('id',currentSong.id).single();
-    if(sr.data) artistId = sr.data.artist_id || sr.data.uploader_id;
-  }
-  if(!artistId){ msg.textContent="Song has no artist - contact admin."; return; }
-  const r1 = await sb.from('purchases').insert({song_id:currentSong.id,buyer_id:user.id,artist_id:artistId,price_grind:parseFloat(currentSong.price),payment_method:method,payment_ref:ref,pay_reference:ref,status:'pending'});
+  const r1 = await sb.from('purchases').insert({song_id:currentSong.id,fan_id:user.id,buyer_id:user.id,fees_grind:price*0.63,platform_grind:price*0.37,payment_method:method,payment_ref:ref,status:'pending'});
   if(r1.error){msg.textContent=r1.error.message;return;}
-  msg.textContent="✅ Sent! Wait for Admin approval. Then it appears in Library."; closeBuy(); setTimeout(function(){ showPage('library'); },800);
+  msg.textContent="✅ Sent! Wait for Admin approval."; closeBuy(); setTimeout(function(){ showPage('library'); },800);
 }
 async function previewSong(path,title){
   const r1 = await sb.storage.from('songs').createSignedUrl(path,35);
@@ -306,7 +315,7 @@ async function loadLibrary(){
   const list=document.getElementById('libraryList');
   const user = await getCurrentUser();
   if(!user){list.innerHTML="Not logged in. Go to Account.";return;}
-  const r1 = await sb.from('purchases').select('*, songs(*)').eq('status','approved').eq('buyer_id',user.id).order('created_at',{ascending:false});
+  const r1 = await sb.from('purchases').select('*, songs(*)').eq('status','approved').eq('fan_id',user.id).order('created_at',{ascending:false});
   let purchases = r1.data;
   if(!purchases||purchases.length===0){list.innerHTML="No approved songs yet.";return;}
   let html="";
@@ -352,24 +361,19 @@ async function doUpload(){
       const cName=coverFile.name.replace(/[^a-zA-Z0-9.-]/g,'_');
       const coverPath=user.id+"/"+Date.now()+"_cover_"+cName;
       const c1 = await sb.storage.from('covers').upload(coverPath,coverFile);
-      if(!c1.error){
-        const pub1 = sb.storage.from('covers').getPublicUrl(coverPath);
-        coverUrl=pub1.data.publicUrl;
-      }
+      if(!c1.error){ const pub1 = sb.storage.from('covers').getPublicUrl(coverPath); coverUrl=pub1.data.publicUrl; }
     }
     msg.textContent="Saving song info...";
     const db1 = await sb.from('songs').insert({title:title,artist_name:artist,artist_id:user.id,uploader_id:user.id,audio_path:audioPath,cover_url:coverUrl,price_grind:parseFloat(priceVal)});
     if(db1.error) throw db1.error;
-    msg.textContent="✅ UPLOADED! Go to Discover to see it."; setTimeout(function(){ showPage('discover'); },1000);
+    msg.textContent="✅ UPLOADED! Go to Discover."; setTimeout(function(){ showPage('discover'); },1000);
   }catch(e){ msg.textContent="FAILED: "+e.message; }
 }
-</script>
-<script>
 async function loadWallet(){
   const user = await getCurrentUser(); if(!user) return;
-  const r1 = await sb.from('profiles').select('balance_grind').eq('id',user.id).single();
-  const prof = r1.data;
-  const bal=prof ? prof.balance_grind : 0;
+  // FIXED: grind_balance
+  const r1 = await sb.from('profiles').select('grind_balance').eq('id',user.id).single();
+  const bal=r1.data ? r1.data.grind_balance : 0;
   document.getElementById('balBig').textContent=(bal||0).toFixed(2)+" G";
   const r2 = await sb.from('deposits').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
   const deps = r2.data || [];
@@ -386,9 +390,7 @@ async function requestDeposit(){
   const msg=document.getElementById('depMsg');
   if(!amt||amt<=0){msg.textContent="Enter amount";return;}
   if(!ref){msg.textContent="Enter OTP / Reference";return;}
-  const r1 = await sb.from('deposits').insert({user_id:user.id,amount_grind:amt,method:method,reference:ref,status:'pending'});
-  if(r1.error){msg.textContent=r1.error.message;return;}
-  msg.textContent="✅ Deposit sent! Status: PENDING. Admin will approve."; loadWallet();
+  await submitDeposit(amt, method, ref);
 }
 async function requestW(){
   const user = await getCurrentUser(); if(!user){showPage('auth');return;}
@@ -396,44 +398,32 @@ async function requestW(){
   const method=document.getElementById('wMethod').value;
   const det=document.getElementById('wDetails').value.trim();
   const msg=document.getElementById('wMsg');
-  if(!amt||amt<2.5){msg.textContent="Minimum is 2.5G because of fees.";return;}
+  if(!amt||amt<2.5){msg.textContent="Minimum is 2.5G";return;}
   if(!det){msg.textContent="Enter where to receive money.";return;}
-  const r1 = await sb.from('withdrawals').insert({artist_id:user.id,amount_grind:amt,receive_method:method,receive_details:det,status:'pending'});
-  if(r1.error){msg.textContent=r1.error.message;return;}
-  msg.textContent="✅ Request sent! Status: PENDING."; loadWallet();
+  await submitWithdrawal(amt, method, det);
 }
 async function loadAdmin(){
   const adminCheck = await isAdmin();
   if(!adminCheck){ document.getElementById('adminPurchases').innerHTML="Not admin."; document.getElementById('adminDeposits').innerHTML=""; document.getElementById('adminWithdrawals').innerHTML=""; return; }
   const r1 = await sb.from('purchases').select('*, songs(title)').eq('status','pending').order('created_at',{ascending:false});
   const ps = r1.data || [];
-  document.getElementById('adminPurchases').innerHTML=ps.map(function(p){ return '<div class="flex"><span>'+esc(p.songs ? p.songs.title : 'Song')+' • '+esc(p.price_grind)+'G • Ref: '+esc(p.payment_ref||p.pay_reference||'')+'</span><button class="small" onclick="approvePurchase(\''+p.id+'\')">Approve</button></div>'; }).join('')||"No pending purchases";
-  const r2 = await sb.from('deposits').select('*').eq('status','pending').order('created_at',{ascending:false});
+  document.getElementById('adminPurchases').innerHTML=ps.map(function(p){ return '<div class="flex"><span>'+esc(p.songs ? p.songs.title : 'Song')+' • '+esc(p.fees_grind)+'G • Ref: '+esc(p.payment_ref||'')+'</span><button class="small" onclick="approvePurchase(\''+p.id+'\')">Approve</button></div>'; }).join('')||"No pending purchases";
+  const r2 = await sb.from('deposits').select('*, profiles(full_name,email,phone)').eq('status','pending').order('created_at',{ascending:false});
   const ds = r2.data || [];
-  document.getElementById('adminDeposits').innerHTML=ds.map(function(d){ return '<div class="flex"><span>'+esc(d.amount_grind)+'G • '+esc(d.method)+' • '+esc(d.reference||'')+'</span><button class="small" onclick="approveDeposit(\''+d.id+'\')">Approve</button></div>'; }).join('')||"No pending deposits";
-  const r3 = await sb.from('withdrawals').select('*').eq('status','pending').order('created_at',{ascending:false});
+  document.getElementById('adminDeposits').innerHTML=ds.map(function(d){ return '<div class="flex"><span>'+esc(d.profiles?.full_name||'No Name')+' • '+esc(d.amount_grind)+'G • '+esc(d.reference||'')+'</span><button class="small" onclick="approveDeposit(\''+d.id+'\')">Approve</button></div>'; }).join('')||"No pending deposits";
+  const r3 = await sb.from('withdrawals').select('*, profiles(full_name,email,phone)').eq('status','pending').order('created_at',{ascending:false});
   const ws = r3.data || [];
-  document.getElementById('adminWithdrawals').innerHTML=ws.map(function(w){ return '<div class="flex"><span>'+esc(w.amount_grind)+'G → '+esc(w.receive_method)+' • '+esc(w.receive_details||'')+'</span><button class="small" onclick="approveWithdrawal(\''+w.id+'\')">Approve</button></div>'; }).join('')||"No pending withdrawals";
+  document.getElementById('adminWithdrawals').innerHTML=ws.map(function(w){ return '<div class="flex"><span>'+esc(w.profiles?.full_name||'No Name')+' • '+esc(w.amount_grind)+'G → '+esc(w.receive_details||'')+'</span><button class="small" onclick="approveWithdrawal(\''+w.id+'\')">Approve</button></div>'; }).join('')||"No pending withdrawals";
 }
-async function approvePurchase(id){
-  const r1 = await sb.rpc('approve_purchase_secure',{p_id:id});
-  if(r1.error) return alert("Failed: "+r1.error.message);
-  alert("Approved! Artist got 63%"); loadAdmin();
-}
-async function approveDeposit(id){
-  const r1 = await sb.rpc('approve_deposit_secure',{p_id:id});
-  if(r1.error) return alert("Failed: "+r1.error.message);
-  alert("Deposit approved!"); loadAdmin();
-}
-async function approveWithdrawal(id){
-  const r1 = await sb.rpc('approve_withdrawal_secure',{p_id:id});
-  if(r1.error) return alert("Failed: "+r1.error.message);
-  alert("Withdrawal approved - send money now!"); loadAdmin();
-}
+// FIXED: Use app.js functions, NOT missing RPCs
+async function approvePurchase(id){ await approvePurchase(id); }
+async function approveDeposit(id){ await approveDeposit(id); }
+async function approveWithdrawal(id){ await approveWithdrawal(id); }
+
 async function showWho(){
   const u = await getCurrentUser();
   const el = document.getElementById('whoAmI');
-  if(u) el.textContent = "Logged in as: " + u.email;
+  if(u) el.textContent = "Logged in as: " + u.email + " • Balance in Wallet tab";
   else el.textContent = "Not logged in - go to Account";
 }
 showWho();

@@ -19,15 +19,18 @@
   #nowPlaying{font-size:13px;margin-bottom:6px}
   .nav{position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #333;display:flex;justify-content:space-around;padding:12px}
   .nav a{color:#fff;text-decoration:none;font-size:13px;opacity:.7} .nav a.active{opacity:1;color:#d4ff3f}
+  .top{ display:flex; justify-content:space-between; align-items:center; }
+  .badge{background:#d4ff3f;color:#000;padding:4px 10px;border-radius:10px;font-weight:900;font-size:12px}
 </style>
 </head>
 <body>
 <header>MAROTHOLI LES-POT — LIBRARY</header>
 <div class="wrap">
-  <h2 style="margin:4px 0 2px">My Bought Songs</h2>
+  <div class="top"><h2 style="margin:4px 0 2px">My Bought Songs</h2><span class="badge" id="bal">G 0.00</span></div>
   <p style="opacity:.6;font-size:13px;margin:0 0 14px">Stream in app only. Song never leaves app.</p>
   <div id="list"></div>
   <div id="msg">Loading...</div>
+  <p style="text-align:center"><a href="discover.html" style="color:#d4ff3f">🔥 Buy more in Discover →</a></p>
 </div>
 
 <div id="player" style="display:none">
@@ -35,7 +38,7 @@
   <audio id="audio" controls controlsList="nodownload"></audio>
 </div>
 
-<div class="nav"><a href="discover.html">Discover</a><a href="library.html" class="active">Library</a><a href="upload.html">Upload</a><a href="wallet.html">Wallet</a></div>
+<div class="nav"><a href="discover.html">🔥 Discover</a><a href="library.html" class="active">📚 Library</a><a href="upload.html">⬆️ Upload</a><a href="wallet.html">💰 Wallet</a><a href="admin.html">🛠️ Admin</a><a href="account.html">👤 Account</a></div>
 
 <script>
 async function load(){
@@ -43,24 +46,34 @@ async function load(){
   const list = document.getElementById('list');
 
   const { data: { user } } = await sb.auth.getUser();
-  if(!user){ msg.textContent = "Not logged in. Go to auth.html"; return; }
+  if(!user){ msg.innerHTML = 'Not logged in. <a href="auth.html" style="color:#d4ff3f">Go to Login →</a>'; return; }
 
-  // FIXED: Only fetch MY purchases. Never fetch everyone else's.
-  // Supabase filters on the server, so Alinah can never see other users' songs.
-  const { data: purchases, error } = await sb.from('purchases')
-    .select('*, songs(*)')
-    .eq('status', 'approved')
-    .eq('buyer_id', user.id) // <-- CHANGE THIS IF NEEDED: if your column is user_id, change buyer_id to user_id
-    .order('created_at', { ascending: false });
+  // FIXED: Check BOTH fan_id AND buyer_id - Wallet buys use fan_id, Mpesa buys use buyer_id
+  // Try fan_id first (new app.js), fallback to buyer_id
+  let purchases = null, error = null;
+  let r1 = await sb.from('purchases').select('*, songs(*)').eq('status', 'approved').eq('fan_id', user.id).order('created_at', { ascending: false });
+  purchases = r1.data; error = r1.error;
+  if(!error && (!purchases || purchases.length===0)){
+    let r2 = await sb.from('purchases').select('*, songs(*)').eq('status','approved').eq('buyer_id', user.id).order('created_at',{ascending:false});
+    if(!r2.error && r2.data && r2.data.length) purchases = r2.data;
+  }
+  // Also merge - in case user has some in each
+  if(!error && purchases){
+    let r3 = await sb.from('purchases').select('*, songs(*)').eq('status','approved').eq('buyer_id', user.id).order('created_at',{ascending:false});
+    if(!r3.error && r3.data){
+      const seen = new Set(purchases.map(p=>p.id));
+      r3.data.forEach(p=>{ if(!seen.has(p.id)) purchases.push(p); });
+    }
+  }
 
   if(error){ msg.textContent = "Error: " + error.message; return; }
 
-  console.log("My purchases:", purchases);
-  console.log("My user id:", user.id);
+  if(!purchases || purchases.length === 0){
+    msg.innerHTML = "No approved songs yet.<br><a href='discover.html' style='color:#d4ff3f'>🔥 Buy one in Discover →</a>";
+    return;
+  }
 
-  if(!purchases || purchases.length === 0){ msg.textContent = "No approved songs yet."; return; }
-
-  msg.textContent = "";
+  msg.textContent = `You own ${purchases.length} song(s) ✅`;
   list.innerHTML = "";
 
   purchases.forEach(p => {
@@ -84,27 +97,32 @@ async function playSong(song){
   now.textContent = "🎵 " + song.title + " — " + song.artist_name;
   player.style.display = 'block';
 
-  // Signed URL works even if bucket is private
+  // FIXED: Try all possible audio fields
+  const path = song.audio_path || song.audio_url || song.file_url || '';
   let url = null;
-  const { data: signed } = await sb.storage.from('songs').createSignedUrl(song.audio_path, 3600);
-  if(signed) url = signed.signedUrl;
-
-  if(!url){
-    const { data: pub } = sb.storage.from('songs').getPublicUrl(song.audio_path);
-    url = pub.publicUrl;
+  if(path && !path.startsWith('http')){
+    const { data: signed } = await sb.storage.from('songs').createSignedUrl(path, 3600);
+    if(signed) url = signed.signedUrl;
+    if(!url){
+      const { data: pub } = sb.storage.from('songs').getPublicUrl(path);
+      url = pub.publicUrl;
+    }
+  } else if(path.startsWith('http')){
+    url = path;
   }
 
-  console.log("Playing URL:", url, "audio_path:", song.audio_path);
+  if(!url){ msg.textContent = "No audio file found for this song. Contact admin."; return; }
   audio.src = url;
   try{
     await audio.play();
     msg.textContent = "✅ Playing: " + song.title;
   }catch(e){
-    msg.textContent = "Tap the Play button in the player below.\n" + e.message;
+    msg.textContent = "Tap Play in player below.";
   }
 }
 
 load();
+loadBalanceBadge();
 </script>
 </body>
 </html>

@@ -13,8 +13,10 @@
   .card{background:#1e1e1e;border:1px solid #333;padding:20px;border-radius:16px}
   h2{margin:0 0 14px} input,select{width:100%;padding:12px;border-radius:10px;border:1px solid #333;background:#222;color:#fff;margin-bottom:10px;font-size:15px}
   button{width:100%;padding:13px;border:0;border-radius:10px;background:#d4ff3f;color:#000;font-weight:900;font-size:16px;cursor:pointer;margin-top:4px}
+  button.ghost{background:#333;color:#fff}
   .link{color:#d4ff3f;cursor:pointer;text-align:center;margin-top:12px;display:block}
-  .hidden{display:none} #rMsg,#lMsg{margin-top:10px;font-size:14px;min-height:20px;text-align:center}
+  .hidden{display:none} #rMsg,#lMsg{margin-top:10px;font-size:14px;min-height:20px;text-align:center;white-space:pre-wrap}
+  .ok{color:#2ecc71} .err{color:#ff5252}
   .footer{text-align:center;opacity:.6;font-size:12px;margin-top:20px}
 </style>
 </head>
@@ -25,23 +27,24 @@
   <!-- LOGIN -->
   <div class="card" id="loginCard">
     <h2>LOGIN</h2>
-    <input id="lEmail" type="email" placeholder="Email">
+    <input id="lEmail" type="email" placeholder="Email - your real Gmail">
     <input id="lPass" type="password" placeholder="Password">
     <button onclick="doLogin()">Login</button>
     <div id="lMsg"></div>
+    <button class="ghost hidden" id="resendBtn" onclick="resendEmail()">📧 Resend Confirmation Email</button>
     <span class="link" onclick="showReg()">New? Register</span>
-    <span class="link" style="color:#fff;opacity:.7">Forgot Password? Use Security Question</span>
+    <span class="link" style="color:#fff;opacity:.7" onclick="forgotPass()">Forgot Password? Send Reset Email</span>
   </div>
 
   <!-- REGISTER -->
   <div class="card hidden" id="regCard">
     <h2>Register</h2>
-    <input id="rName" placeholder="Full Name">
+    <input id="rName" placeholder="Full Name - e.g. Alinah Lebeko">
     <input id="rPhone" placeholder="Lesotho number e.g. 59812345">
     <select id="rCountry"><option value="Lesotho">Lesotho</option><option value="South Africa">South Africa</option><option value="Other">Other</option></select>
     <select id="rGender"><option value="">Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select>
-    <input id="rEmail" type="email" placeholder="Email">
-    <input id="rPass" type="password" placeholder="Password">
+    <input id="rEmail" type="email" placeholder="Email - use real Gmail">
+    <input id="rPass" type="password" placeholder="Password (min 6 chars)">
     <select id="rQ"><option>What is your mother's maiden name?</option><option>What was your first school?</option><option>What is your favourite song?</option></select>
     <input id="rA" placeholder="Security Answer">
     <button onclick="doRegister()">Create Account</button>
@@ -51,5 +54,128 @@
 
   <div class="footer">© MAROTHOLI GRINDERS • MAROTHOLI LES-POT • Les-Pot GrindPay</div>
 </div>
+
+<script>
+function showReg(){ document.getElementById('loginCard').classList.add('hidden'); document.getElementById('regCard').classList.remove('hidden'); }
+function showLogin(){ document.getElementById('regCard').classList.add('hidden'); document.getElementById('loginCard').classList.remove('hidden'); }
+function setMsg(id, txt, isErr){
+  const el = document.getElementById(id);
+  el.textContent = txt;
+  el.className = isErr ? 'err' : 'ok';
+}
+
+async function doRegister(){
+  const full_name = document.getElementById('rName').value.trim();
+  const phone = document.getElementById('rPhone').value.trim();
+  const country = document.getElementById('rCountry').value;
+  const gender = document.getElementById('rGender').value;
+  const email = document.getElementById('rEmail').value.trim().toLowerCase();
+  const password = document.getElementById('rPass').value;
+  const secQ = document.getElementById('rQ').value;
+  const secA = document.getElementById('rA').value.trim();
+
+  if(!full_name){ setMsg('rMsg','Enter your full name', true); return; }
+  if(!phone){ setMsg('rMsg','Enter your Lesotho number', true); return; }
+  if(!email || !email.includes('@')){ setMsg('rMsg','Enter a real email / Gmail', true); return; }
+  if(!password || password.length < 6){ setMsg('rMsg','Password must be 6+ chars', true); return; }
+
+  setMsg('rMsg','Creating account... please wait');
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name, phone, country, gender, security_question: secQ, security_answer: secA },
+      emailRedirectTo: location.origin + '/discover.html'
+    }
+  });
+  if(error){
+    // If user already exists, tell them to login
+    if(error.message.toLowerCase().includes('already')){
+      setMsg('rMsg','This email already has an account. Go to Login.', true);
+      setTimeout(showLogin, 1200);
+    } else {
+      setMsg('rMsg','Register failed: ' + error.message, true);
+    }
+    return;
+  }
+  // Create profile immediately with real name/phone/email - so Admin sees them even before email confirm
+  if(data?.user){
+    await sb.from('profiles').upsert({
+      id: data.user.id,
+      email: email,
+      full_name: full_name,
+      phone: phone,
+      grind_balance: 0
+    }, { onConflict: 'id' });
+  }
+  // If Supabase requires email confirm, user needs to check inbox. If not, they are logged in.
+  if(data?.user && !data.session){
+    setMsg('rMsg','✅ Account created! Check your Gmail for confirmation link (check Spam too). Then Login.');
+  } else {
+    setMsg('rMsg','✅ Account created! Logging you in...');
+    setTimeout(()=> location.href='discover.html', 800);
+  }
+}
+
+async function doLogin(){
+  const email = document.getElementById('lEmail').value.trim().toLowerCase();
+  const password = document.getElementById('lPass').value;
+  if(!email || !password){ setMsg('lMsg','Enter email + password', true); return; }
+  setMsg('lMsg','Logging in...');
+  document.getElementById('resendBtn').classList.add('hidden');
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){
+    let msg = error.message;
+    if(msg.toLowerCase().includes('email not confirmed') || msg.toLowerCase().includes('not confirmed')){
+      msg = 'Email not confirmed. Check Gmail (and Spam) for link, or tap Resend below.';
+      document.getElementById('resendBtn').classList.remove('hidden');
+    }
+    if(msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')){
+      msg = 'Wrong email or password. Try again, or Register if you have no account.';
+    }
+    setMsg('lMsg', msg, true);
+    return;
+  }
+  // Ensure profile has email/name/phone filled
+  if(data?.user){
+    await sb.from('profiles').update({ email: data.user.email }).eq('id', data.user.id);
+  }
+  setMsg('lMsg','✅ Logged in! Loading...');
+  setTimeout(()=> location.href='discover.html', 600);
+}
+
+async function resendEmail(){
+  const email = document.getElementById('lEmail').value.trim().toLowerCase();
+  if(!email){ setMsg('lMsg','Enter your email first, then Resend', true); return; }
+  setMsg('lMsg','Sending fresh confirmation email...');
+  const { error } = await sb.auth.resend({ type:'signup', email, options:{ emailRedirectTo: location.origin + '/discover.html' } });
+  if(error) setMsg('lMsg','Resend failed: ' + error.message, true);
+  else setMsg('lMsg','✅ Fresh email sent to ' + email + '. Check Inbox + Spam. New link works 24h.');
+}
+
+async function forgotPass(){
+  const email = document.getElementById('lEmail').value.trim().toLowerCase();
+  if(!email){ setMsg('lMsg','Enter your email in Login box first, then tap Forgot Password', true); return; }
+  setMsg('lMsg','Sending reset email...');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/auth.html' });
+  if(error) setMsg('lMsg','Reset failed: ' + error.message, true);
+  else setMsg('lMsg','✅ Reset email sent to ' + email + '. Check Inbox + Spam.');
+}
+
+// If user came back from expired email link, show helpful message
+if(location.hash.includes('otp_expired') || location.search.includes('otp_expired') || location.hash.includes('error=access_denied')){
+  setMsg('lMsg','That email link expired. Login below and tap Resend Confirmation Email to get a fresh one.', true);
+}
+
+// If already logged in, skip login
+(async ()=>{
+  const { data } = await sb.auth.getUser();
+  if(data?.user && !location.hash.includes('error')){
+    // Don't auto-redirect if they just landed from email link with error
+    // setMsg('lMsg','Already logged in as ' + data.user.email);
+  }
+})();
+</script>
 </body>
 </html>

@@ -54,21 +54,24 @@
 let selectedSong=null;
 let myBalance=0;
 let myUser=null;
+let allSongs=[];
 
 async function loadMyBalance(){
   const {data:{user}} = await sb.auth.getUser();
   myUser = user;
   if(!user){ document.getElementById('bal').textContent='G 0.00'; return; }
-  const {data} = await sb.from('profiles').select('balance_grind').eq('id', user.id).single();
-  myBalance = Number(data?.balance_grind || 0);
+  // FIXED: grind_balance not balance_grind
+  const {data} = await sb.from('profiles').select('grind_balance').eq('id', user.id).single();
+  myBalance = Number(data?.grind_balance || 0);
   document.getElementById('bal').textContent = myBalance.toFixed(2)+' G';
 }
 
 async function loadSongs(){
   const {data,error}=await sb.from('songs').select('*').order('created_at',{ascending:false});
   const el=document.getElementById('songs');
-  if(error||!data||data.length===0){el.innerHTML=`<div class="card"><h3>No songs yet</h3><p>Be the first artist to upload. Go to Upload.</p></div>`;return}
-  el.innerHTML=data.map(s=>`<div class="card song"><img src="${s.cover_url||''}"><div class="meta"><b>${s.title}</b><small>${s.artist_name} • ${s.total_buys||0} buys</small></div><div><div class="price-tag">${s.price_grind}G</div><div class="small">M${(Number(s.price_grind)*10).toFixed(1)}</div><button style="width:auto;padding:8px 14px;margin-top:6px" onclick='openBuy(${JSON.stringify(s)})'>BUY</button></div></div>`).join('');
+  if(error||!data||data.length===0){el.innerHTML=`<div class="card"><h3>No songs yet</h3><p>Be the first artist to upload. Go to <a href="upload.html">Upload</a>.</p></div>`;return}
+  allSongs = data;
+  el.innerHTML=data.map((s,i)=>`<div class="card song"><img src="${s.cover_url||''}"><div class="meta"><b>${s.title}</b><small>${s.artist_name} • ${s.total_buys||0} buys</small></div><div><div class="price-tag">${s.price_grind}G</div><div class="small">M${(Number(s.price_grind)*10).toFixed(1)}</div><button style="width:auto;padding:8px 14px;margin-top:6px" onclick='openBuy(${i})'>BUY</button></div></div>`).join('');
 }
 
 function togglePayMethod(){
@@ -79,14 +82,16 @@ function togglePayMethod(){
   document.getElementById('buyBtn').textContent = isWallet ? 'BUY WITH WALLET →' : 'SUBMIT FOR APPROVAL →';
 }
 
-function openBuy(s){
+function openBuy(index){
+  const s = allSongs[index];
   selectedSong=s;
   document.getElementById('buyTitle').textContent="Buy: "+s.title;
   document.getElementById('buyPrice').textContent=s.price_grind+"G = M"+(Number(s.price_grind)*10).toFixed(2)+" • Artist gets 63%";
-  document.getElementById('myBalText').textContent="Your Wallet: "+myBalance.toFixed(2)+" G";
+  document.getElementById('myBalText').textContent="Your Wallet: "+myBalance.toFixed(2)+" G • Top up in Wallet if low";
   document.getElementById('payMethod').value='Wallet';
   togglePayMethod();
   document.getElementById('buyModal').classList.remove('hidden');
+  document.getElementById('buyMsg').textContent='';
   window.scrollTo(0,0);
 }
 function closeBuy(){document.getElementById('buyModal').classList.add('hidden')}
@@ -98,62 +103,31 @@ async function submitBuy(){
   if(!selectedSong){msg.textContent="No song selected";return}
   const price = Number(selectedSong.price_grind);
 
-  // ===== WALLET BUY - INSTANT, DEDUCTS BALANCE - THIS WAS MISSING =====
+  // ===== WALLET BUY - USE app.js function so no double-pay =====
   if(method === 'Wallet'){
     if(myBalance < price){ msg.textContent=`Not enough balance. You have ${myBalance.toFixed(2)} G, need ${price} G. Top up in Wallet first.`; return; }
     msg.textContent="Buying with Wallet...";
-
-    // 1. Check already bought
-    const {data: already} = await sb.from('purchases').select('id').eq('fan_id', myUser.id).eq('song_id', selectedSong.id).maybeSingle();
-    if(already){ msg.textContent="You already own this. Go to Library."; return; }
-
-    // 2. DEDUCT BUYER
-    const {error: deductErr} = await sb.from('profiles').update({ balance_grind: myBalance - price }).eq('id', myUser.id);
-    if(deductErr){ msg.textContent="Deduct failed: "+deductErr.message; return; }
-
-    // 3. PAY ARTIST 63%
     const artistId = selectedSong.artist_id || selectedSong.user_id || selectedSong.owner_id;
-    if(artistId && artistId !== myUser.id){
-      const {data: artist} = await sb.from('profiles').select('balance_grind').eq('id', artistId).single();
-      const royalty = price * 0.63;
-      await sb.from('profiles').update({ balance_grind: Number(artist?.balance_grind||0) + royalty }).eq('id', artistId);
-    }
-
-    // 4. Record purchase as APPROVED / instant unlock
-    const {error: purErr} = await sb.from('purchases').insert({
-      fan_id: myUser.id,
-      user_id: myUser.id,
-      song_id: selectedSong.id,
-      price_grind: price,
-      amount: price,
-      pay_method: 'Wallet',
-      pay_reference: 'WALLET-'+Date.now(),
-      status: 'approved'
-    });
-    if(purErr){ msg.textContent="Purchase save failed: "+purErr.message; return; }
-
-    // 5. Increment buys count
-    await sb.from('songs').update({ total_buys: Number(selectedSong.total_buys||0)+1 }).eq('id', selectedSong.id);
-
-    msg.textContent=`✅ Bought! -${price} G. New balance: ${(myBalance-price).toFixed(2)} G. Go to Library!`;
-    myBalance -= price;
-    document.getElementById('bal').textContent = myBalance.toFixed(2)+' G';
-    setTimeout(()=>{ location.href='library.html'; }, 1200);
+    // Use central function from app.js - handles deduct + artist 63% + purchase
+    await buySongWithWallet(selectedSong.id, price, artistId);
     return;
   }
 
-  // ===== EXTERNAL BUY - Mpesa/EcoCash - WAIT FOR APPROVAL =====
+  // ===== EXTERNAL BUY - Mpesa/EcoCash - WAIT FOR APPROVAL - FIXED COLUMNS =====
   const ref=document.getElementById('payRef').value.trim();
   if(!ref){msg.textContent="Paste your OTP / Reference first.";return}
   msg.textContent="Sending to owner for approval...";
+  // Prevent duplicate pending purchase
+  const {data:dup} = await sb.from('purchases').select('id').eq('fan_id', myUser.id).eq('song_id', selectedSong.id).eq('status','pending').maybeSingle();
+  if(dup){ msg.textContent="You already sent this. Wait for approval."; return; }
   const {error}=await sb.from('purchases').insert({
     fan_id: myUser.id,
-    user_id: myUser.id,
+    buyer_id: myUser.id,
     song_id: selectedSong.id,
-    price_grind: price,
-    amount: price,
-    pay_method: method,
-    pay_reference: ref,
+    fees_grind: price * 0.63,
+    platform_grind: price * 0.37,
+    payment_method: method,
+    payment_ref: ref,
     status: 'pending'
   });
   if(error){msg.textContent=error.message;return}

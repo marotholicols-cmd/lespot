@@ -1,25 +1,98 @@
-/* MAROTHOLI LES-POT - Les-Pot GrindPay */
-:root{--bg:#08080d;--card:#12121a;--green:#a3ff00;--green2:#00ff88;--text:#fff;--muted:#9a9aab;--red:#ff3b3b}
-*{margin:0;padding:0;box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
-body{background:var(--bg);color:var(--text);padding-bottom:90px}
+/* MAROTHOLI LES-POT - PREMIUM YOUTH EDITION - DO NOT DUPLICATE */
+:root{
+  --bg:#08080d;
+  --bg2:#0d0d14;
+  --card:#12121a;
+  --card2:#1a1a24;
+  --green:#a3ff00;
+  --green2:#00ff88;
+  --yellow:#d4ff3f;
+  --text:#fff;
+  --muted:#9a9aab;
+  --red:#ff3b3b;
+  --radius:18px;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+  --glow:0 0 24px rgba(163,255,0,.35);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+html{scroll-behavior:smooth}
+body{background:radial-gradient(600px 300px at 50% -50px, rgba(163,255,0,.18), transparent), var(--bg);color:var(--text);padding-bottom:100px;min-height:100vh;-webkit-tap-highlight-color:transparent}
 a{color:var(--green);text-decoration:none}
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:#0d0d14;position:sticky;top:0;z-index:10;border-bottom:1px solid #222}
-.logo{font-size:22px;font-weight:900}.logo span{color:var(--green)}
-.badge{background:var(--green);color:#000;font-size:11px;font-weight:800;padding:4px 8px;border-radius:20px}
-.hero{padding:28px 20px;background:linear-gradient(135deg,#a3ff00,#00ff88);color:#000;border-radius:0 0 24px 24px}
-.hero h1{font-size:32px;line-height:1.05}.hero p{margin-top:8px;font-weight:600;opacity:.8}
-.hero .price{margin-top:14px;background:#000;color:var(--green);display:inline-block;padding:8px 14px;border-radius:12px;font-weight:800}
-.container{padding:20px}.card{background:var(--card);border:1px solid #222;border-radius:18px;padding:18px;margin-bottom:14px}
-.card h3{font-size:16px;margin-bottom:6px}.card p{color:var(--muted);font-size:14px;line-height:1.5}
-input,select{width:100%;padding:14px;background:#0a0a10;border:1px solid #2a2a35;border-radius:12px;color:#fff;margin-bottom:12px;font-size:15px;outline:none}
-input:focus{border-color:var(--green)}
-button{width:100%;padding:15px;background:var(--green);color:#000;border:none;border-radius:12px;font-weight:900;font-size:16px;cursor:pointer}
-button.ghost{background:transparent;border:1px solid #333;color:#fff}
-button.danger{background:var(--red);color:#fff}
-.song{display:flex;gap:14px;align-items:center}.song img{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#222}
-.song .meta{flex:1}.song .meta b{display:block}.song .meta small{color:var(--muted)}
-.price-tag{color:var(--green);font-weight:900}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#0d0d14;border-top:1px solid #222;display:flex;justify-content:space-around;padding:12px 0;z-index:20}
-.bottomnav a{font-size:12px;color:var(--muted);text-align:center}.bottomnav a.active{color:var(--green);font-weight:800}
-.player{position:fixed;bottom:62px;left:12px;right:12px;background:#1a1a24;border:1px solid #333;border-radius:16px;padding:12px;display:flex;align-items:center;gap:12px;z-index:15}
-.hidden{display:none!important}.center{text-align:center}.small{font-size:12px;color:var(--muted)}
+a:active{opacity:.7}
+
+/* TOPBAR */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:rgba(13,13,20,.92);backdrop-filter:blur(12px);position:sticky;top:0;z-index:30;border-bottom:1px solid #222}
+.logo{font-size:22px;font-weight:900;letter-spacing:-.5px}
+.logo span{color:var(--green);text-shadow:0 0 18px rgba(163,255,0,.6)}
+.badge{background:linear-gradient(135deg,var(--yellow),var(--green));color:#000;font-size:12px;font-weight:900;padding:6px 12px;border-radius:999px;box-shadow:var(--glow);white-space:nowrap}
+
+/* HERO */
+.hero{padding:30px 22px 26px;background:linear-gradient(135deg,#d4ff3f 0%,#a3ff00 45%,#00ff88 100%);color:#000;border-radius:0 0 28px 28px;box-shadow:0 20px 40px rgba(163,255,0,.25)}
+.hero h1{font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1px}
+.hero p{margin-top:10px;font-weight:600;opacity:.85;font-size:15px}
+.hero .price{margin-top:16px;background:#000;color:var(--green);display:inline-block;padding:9px 15px;border-radius:12px;font-weight:900;font-size:14px}
+
+/* LAYOUT */
+.wrap{max-width:600px;margin:0 auto;padding:16px}
+.container{padding:20px;max-width:600px;margin:0 auto}
+.card{background:linear-gradient(180deg,#17171f,#12121a);border:1px solid #26262f;border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card h3{font-size:16px;margin-bottom:6px;font-weight:800}
+.card h2{font-size:20px;font-weight:900}
+.card p{color:var(--muted);font-size:14px;line-height:1.55}
+.card:active{border-color:#3a3a45}
+
+/* FORMS */
+input,select,textarea{width:100%;padding:14px;background:#0a0a10;border:1.5px solid #2a2a35;border-radius:12px;color:#fff;margin-bottom:12px;font-size:15px;outline:none;transition:.2s}
+input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(163,255,0,.15);background:#0d0d14}
+input::placeholder{color:#666}
+label{font-size:13px;color:var(--muted);font-weight:700;display:block;margin-bottom:6px}
+
+/* BUTTONS */
+button{width:100%;padding:15px;background:linear-gradient(135deg,var(--yellow),var(--green));color:#000;border:none;border-radius:14px;font-weight:900;font-size:16px;cursor:pointer;transition:.15s;box-shadow:0 6px 20px rgba(163,255,0,.25)}
+button:active{transform:scale(.97)}
+button.ghost{background:#22222c;border:1px solid #333;color:#fff;box-shadow:none}
+button.danger{background:linear-gradient(135deg,#ff5a5a,#ff3b3b);color:#fff}
+button.small{width:auto;padding:9px 16px;font-size:13px;border-radius:999px}
+.playBtn{background:linear-gradient(135deg,var(--yellow),var(--green));color:#000;border:0;padding:10px 18px;border-radius:999px;font-weight:900;cursor:pointer;white-space:nowrap;box-shadow:var(--glow)}
+.playBtn:active{transform:scale(.95)}
+
+/* SONGS */
+.song{display:flex;gap:14px;align-items:center}
+.song img,.cover{width:64px;height:64px;border-radius:14px;object-fit:cover;background:#222;flex-shrink:0;border:1px solid #333}
+.song .meta{flex:1;min-width:0}
+.song .meta b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.song .meta small{color:var(--muted);font-size:12px}
+.price-tag{color:var(--green);font-weight:900;font-size:15px}
+.flex{display:flex;gap:10px;align-items:center;justify-content:space-between}
+
+/* NAV */
+.bottomnav,.nav{position:fixed;bottom:0;left:0;right:0;background:rgba(13,13,20,.95);backdrop-filter:blur(12px);border-top:1px solid #222;display:flex;justify-content:space-around;padding:12px 0 calc(12px + env(safe-area-inset-bottom));z-index:40}
+.bottomnav a,.nav a,.nav button{font-size:12px;color:var(--muted);text-align:center;background:none;border:none;width:auto;padding:6px;font-weight:700;cursor:pointer}
+.bottomnav a.active,.nav a.active,.nav button.active{color:var(--green);font-weight:900;text-shadow:0 0 12px rgba(163,255,0,.5)}
+
+/* PLAYER */
+.player,#player{position:fixed;bottom:68px;left:12px;right:12px;background:rgba(26,26,36,.95);backdrop-filter:blur(12px);border:1px solid #333;border-radius:18px;padding:12px;display:flex;align-items:center;gap:12px;z-index:35;box-shadow:var(--shadow)}
+#player audio{width:100%;max-width:600px}
+#miniPlayer{position:fixed;bottom:68px;left:12px;right:12px;background:#1a1a24;border:1px solid #333;border-radius:16px;padding:12px;display:flex;align-items:center;gap:12px;z-index:35}
+
+/* HELPERS */
+.hidden{display:none!important}
+.center{text-align:center}
+.small{font-size:12px;color:var(--muted);line-height:1.5}
+.link{color:var(--green);cursor:pointer;text-align:center;margin-top:12px;display:block;font-weight:700}
+.ok{color:#2ecc71}.err{color:#ff5252}
+.center h1{font-size:42px;font-weight:900;letter-spacing:-1px}
+.center h1 span{color:var(--green)}
+
+/* YOUTH BADGES */
+.pill{display:inline-block;background:#222;color:var(--green);padding:6px 12px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid #333}
+
+/* MOBILE TWEAKS */
+@media(max-width:380px){
+  .hero h1{font-size:28px}
+  .logo{font-size:19px}
+  .container{padding:14px}
+  .card{padding:14px}
+  button{padding:13px}
+}
